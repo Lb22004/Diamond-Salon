@@ -1,0 +1,21 @@
+:root {
+  --wine: #6b1a24;
+  --gold: #8a6a1f;
+  --ink: #1f1f1f;
+  --paper: #faf8f4;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+.layout { display: flex; min-height: 100vh; }
+.sidebar { width: 220px; background: #232323; color: #eee; padding: 1rem; }
+.brand { font-weight: 700; font-size: 1.1rem; margin-bottom: 1.5rem; }
+.brand small { display: block; color: #e0b85a; font-size: 0.65rem; letter-spacing: 0.08em; }
+.section { font-size: 0.65rem; color: #999; letter-spacing: 0.08em; }
+.sidebar nav { display: flex; flex-direction: column; gap: 0.25rem; }
+.sidebar a { color: #ddd; text-decoration: none; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.9rem; }
+.sidebar a.router-link-active { background: var(--wine); color: #fff; }
+.content { flex: 1; padding: 2rem; }
+.placeholder { border: 1px dashed #ccc; border-radius: 8px; padding: 1.5rem; background: #fff; }
