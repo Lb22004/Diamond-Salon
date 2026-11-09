@@ -376,7 +376,7 @@ def create_sale(
     for pl in prepared_lines:
         SaleLine.objects.create(sale=sale, **pl)
 
-    # Optional hook to P5's StockService if apps.inventory.services.stock is implemented
+    # Hook to P5's StockService (raises InsufficientStockError / RegimeMismatchError on violation)
     try:
         from apps.inventory.services.stock import register_movement  # type: ignore
 
@@ -384,7 +384,7 @@ def create_sale(
             if pl["line_type"] == SaleLine.LineType.PRODUCT and pl["product_id"]:
                 register_movement(
                     product=pl["product_id"],
-                    location="VITRINA",
+                    location="VIT",
                     movement_type="RETURN_IN" if clean_doc_type == "NC" else "SALE",
                     quantity=pl["quantity"],
                     unit_cost=pl["unit_cost"],
@@ -393,7 +393,7 @@ def create_sale(
                     source_id=sale.pk,
                     user=user,
                 )
-    except (ImportError, Exception):
+    except ImportError:
         pass
 
     # Build automatic double-entry lines (SRS §5 & RF-VEN-05)

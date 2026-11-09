@@ -2140,3 +2140,641 @@ body {
 .alert { padding: 0.65rem 0.9rem; border-radius: 6px; font-size: 0.84rem; }
 .alert--danger { background: var(--danger-soft); color: var(--danger); border: 1px solid rgba(166, 27, 41, 0.25); }
 .alert--success { background: var(--success-soft); color: var(--success); border: 1px solid rgba(27, 107, 58, 0.25); }
+
+
+/* =========================================================================
+   Vista 2 · Inventario Mixto & Vista 4 · Libro de Compras (P5 Mock-up Styles)
+   ========================================================================= */
+
+.ds-vista-ribbon--soft {
+  background: #f5ebda;
+  border-color: #e6d5b8;
+  color: #5c4316;
+}
+
+.ds-vista-ribbon--dark-gold {
+  background: linear-gradient(90deg, #6e5010 0%, #805e15 100%);
+  border-color: #5c420b;
+  color: #fdf8ec;
+}
+
+.ds-vista-ribbon__pill-pink {
+  background: #f9dfe3;
+  color: #6b1a24;
+  padding: 0.14rem 0.55rem;
+  border-radius: 4px;
+  font-weight: 800;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+}
+
+/* Vista 2 · 3 KPI Cards with Inner Footer Box */
+.ds-inv-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(240px, 1fr));
+  gap: 1.15rem;
+}
+
+@media (max-width: 980px) {
+  .ds-inv-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ds-inv-kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--ink);
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.85rem;
+  box-shadow: 0 2px 8px rgba(27, 26, 25, 0.03);
+}
+
+.ds-inv-kpi-card--wine {
+  border-top-color: var(--wine);
+}
+
+.ds-inv-kpi-card--ink {
+  border-top-color: var(--ink);
+}
+
+.ds-inv-kpi-card--alert {
+  background: #fdf6f7;
+  border-color: #f2d5d9;
+  border-top: 3px solid #a61b29;
+}
+
+.ds-inv-kpi-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ds-inv-kpi-card__eyebrow {
+  font-size: 0.71rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+}
+
+.ds-inv-kpi-card--alert .ds-inv-kpi-card__eyebrow {
+  color: #8c1d29;
+}
+
+.ds-inv-kpi-card__value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-inv-kpi-card__value--wine {
+  color: var(--wine);
+}
+
+.ds-inv-kpi-card__value--danger {
+  color: #9e1b28;
+}
+
+.ds-inv-kpi-card__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ds-inv-kpi-card__icon--wine {
+  background: #fae2e5;
+  color: var(--wine);
+}
+
+.ds-inv-kpi-card__icon--ink {
+  background: #2b2927;
+  color: #e6c587;
+}
+
+.ds-inv-kpi-card__icon--danger {
+  background: #fadadd;
+  color: #9e1b28;
+}
+
+.ds-inv-kpi-footbox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 6px;
+  background: #f6f4ef;
+  font-size: 0.76rem;
+  color: var(--ink-muted);
+}
+
+.ds-inv-kpi-footbox--gold {
+  background: #f7efe0;
+}
+
+.ds-inv-kpi-footbox--alert {
+  background: #ffffff;
+  border: 1px solid #f2d5d9;
+}
+
+.ds-inv-kpi-footbox strong {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-inv-kpi-footbox--wine strong {
+  color: var(--wine);
+}
+
+.ds-inv-kpi-footbox--alert strong {
+  color: #9e1b28;
+  font-size: 0.78rem;
+}
+
+/* Vista 2 · Dual Regime Panels (Vitrina vs Cabina) */
+.ds-inv-dual-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.35rem;
+  align-items: stretch;
+}
+
+@media (max-width: 1040px) {
+  .ds-inv-dual-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ds-inv-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 4px 14px rgba(27, 26, 25, 0.04);
+}
+
+.ds-inv-panel__header {
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  color: #ffffff;
+}
+
+.ds-inv-panel__header--wine {
+  background: #6b1a24;
+}
+
+.ds-inv-panel__header--ink {
+  background: #1b1a19;
+}
+
+.ds-inv-panel__title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ds-inv-panel__title {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.ds-inv-panel__subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.ds-inv-panel__count-pill {
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.73rem;
+  font-weight: 700;
+  padding: 0.24rem 0.65rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.ds-inv-panel__searchbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 1.25rem;
+  background: #faf8f4;
+  border-bottom: 1px solid #ede8dd;
+}
+
+.ds-inv-panel__search-input {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 1;
+}
+
+.ds-inv-panel__search-input input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.8rem;
+  color: var(--ink);
+  width: 100%;
+}
+
+.ds-inv-panel__account-tag {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #8c857b;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.ds-inv-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ds-inv-table thead th {
+  background: #f5f2eb;
+  color: #787269;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.65rem 1.1rem;
+  text-align: left;
+  border-bottom: 1px solid #e8e2d5;
+}
+
+.ds-inv-table tbody tr {
+  border-bottom: 1px solid #f2eee6;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ds-inv-table tbody tr:hover {
+  background: #fcfaf5;
+}
+
+.ds-inv-table tbody td {
+  padding: 0.95rem 1.1rem;
+  vertical-align: middle;
+  font-size: 0.84rem;
+}
+
+.ds-inv-prod-name {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 0.87rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ds-inv-crit-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a61b29;
+  display: inline-block;
+}
+
+.ds-inv-prod-brand {
+  font-size: 0.74rem;
+  color: #857f75;
+  margin-top: 0.18rem;
+}
+
+.ds-inv-qty {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+  font-size: 0.84rem;
+  color: var(--ink);
+}
+
+.ds-inv-qty--critical {
+  color: #a61b29;
+}
+
+.ds-inv-pvp {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--wine);
+}
+
+.ds-inv-station-pill {
+  display: inline-block;
+  background: #f2efe9;
+  border: 1px solid #e2ddd2;
+  color: #4a4742;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.18rem 0.55rem;
+  border-radius: 5px;
+}
+
+.ds-inv-badge-venta {
+  display: inline-block;
+  background: #fae2e5;
+  color: #6b1a24;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+}
+
+.ds-inv-badge-servicio {
+  display: inline-block;
+  background: #1b1a19;
+  color: #f5f2eb;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.18rem 0.65rem;
+  border-radius: 999px;
+}
+
+.ds-inv-panel__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1.25rem;
+  background: #f3f0e8;
+  border-top: 1px solid #e2dcd0;
+}
+
+.ds-inv-panel__footer-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #6b655c;
+  text-transform: uppercase;
+}
+
+.ds-inv-panel__footer-units {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ds-inv-panel__footer-box {
+  background: #ffffff;
+  border: 1px solid #dfd9cc;
+  border-radius: 6px;
+  padding: 0.38rem 0.75rem;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-inv-panel__footer-box--wine {
+  color: var(--wine);
+}
+
+/* Vista 4 · Libro de Compras 2-Column Layout & Sidebar */
+.ds-purchases-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2.35fr) minmax(295px, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 1080px) {
+  .ds-purchases-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ds-purchases-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.ds-dist-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.15rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.ds-dist-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: #1b1a19;
+  overflow: hidden;
+  display: flex;
+}
+
+.ds-dist-bar__vitrina {
+  background: #6b1a24;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.ds-dist-bar__cabina {
+  background: #1b1a19;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.ds-dist-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.75rem;
+  background: #faf8f4;
+  border: 1px solid #ede8dd;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.ds-dist-row__left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ds-dist-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.ds-dist-dot--wine {
+  background: #6b1a24;
+}
+
+.ds-dist-dot--ink {
+  background: #1b1a19;
+}
+
+.ds-cert-card {
+  background: #1b1a19;
+  color: #f4f1ea;
+  border-radius: 10px;
+  padding: 1.2rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  box-shadow: 0 8px 24px rgba(27, 26, 25, 0.16);
+}
+
+.ds-cert-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ds-cert-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 7px;
+  background: #6b1a24;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ds-cert-card__eyebrow {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #c8a97e;
+  text-transform: uppercase;
+}
+
+.ds-cert-card__title {
+  margin: 0.1rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.ds-cert-card__body {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: rgba(244, 241, 234, 0.78);
+}
+
+.ds-cert-card__foot {
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: #c8a97e;
+}
+
+/* Bottom 3 Supplier Highlight Cards */
+.ds-supplier-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.15rem;
+}
+
+@media (max-width: 960px) {
+  .ds-supplier-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ds-supplier-highlight-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.95rem 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.ds-supplier-highlight-card:hover {
+  border-color: var(--gold);
+  transform: translateY(-1px);
+}
+
+.ds-supplier-highlight-card__thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #f3ede0 0%, #e5dcc8 100%);
+  color: #6b5320;
+  border: 1px solid #dcd3be;
+}
+
+.ds-supplier-highlight-card__thumb--wine {
+  background: linear-gradient(135deg, #f9e5e8 0%, #efd0d5 100%);
+  color: #6b1a24;
+  border-color: #e5bfc5;
+}
+
+.ds-supplier-highlight-card__eyebrow {
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a6a1f;
+}
+
+.ds-supplier-highlight-card__eyebrow--wine {
+  color: #6b1a24;
+}
+
+.ds-supplier-highlight-card__name {
+  margin: 0.12rem 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ds-supplier-highlight-card__desc {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+  line-height: 1.35;
+}

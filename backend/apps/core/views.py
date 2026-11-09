@@ -371,8 +371,8 @@ class DashboardSummaryView(APIView):
                         COALESCE(SUM(CASE WHEN destination = 'CABINA' THEN total ELSE 0 END), 0),
                         COUNT(*)
                     FROM purchases_purchase
-                    WHERE status = 'POSTED'
-                      AND purchase_date BETWEEN %s AND %s
+                    WHERE status = 'REGISTERED'
+                      AND doc_date BETWEEN %s AND %s
                     """,
                     [period.start_date, period.end_date],
                 )
@@ -624,10 +624,10 @@ class GlobalSearchView(APIView):
                 if "purchases_purchase" in tables:
                     cursor.execute(
                         """
-                        SELECT id, doc_type, doc_number, purchase_date, total
+                        SELECT id, doc_type, doc_number, doc_date, total
                         FROM purchases_purchase
                         WHERE LOWER(doc_number) LIKE LOWER(%s)
-                        ORDER BY purchase_date DESC
+                        ORDER BY doc_date DESC
                         LIMIT 5
                         """,
                         [like_pattern],

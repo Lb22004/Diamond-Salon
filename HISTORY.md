@@ -350,3 +350,37 @@ Mounted under `/api/v1/` and `/api/v1/sales/`:
   - Verified `split_iva()` for `FCF` (`$25.00` → `$22.12 + $2.88`; `$12.00` → `$10.62 + $1.38`), `CCF` (`$100.00` → `$100.00 + $13.00`), and 1% large-taxpayer withholding (`$1.00`).
   - Verified seeded Nov 2026 sales book (`gross_sales = 70.00`, `taxable_base = 61.94`, `iva_debit = 8.06`, `cabina = 40.00`, `vitrina = 30.00`).
   - Verified `CCF` rejection for Final Consumer (`RF-VEN-04`), automatic double-entry + cost of sales posting (`110101`, `5101`, `5102`, `2107`, `410101`, `110501`), and `void_sale()` reversal (`22 passed` across all backend test suites).
+
+
+---
+
+## P5 · Inventario Mixto, Kárdex, Proveedores & Compras (Vista 2 y Vista 4)
+
+### 2026-11-09 — Implementación de Inventario Mixto, Kárdex por Costo Promedio y Libro de Compras
+
+- **Modelos de Dominio y Migraciones (`apps.inventory` & `apps.purchases`)**:
+  - `backend/apps/inventory/models.py`: `Category`, `Location`, `Product`, `Stock`, `Adjustment`, `Consumption` e `InventoryMovement` con todas las restricciones de integridad de `docs/database/schema.sql` (`ck_inventory_product_type`, `ck_inventory_vitrina_requires_pvp`, `ck_inventory_cabina_no_pvp`, `ck_inventory_stock_non_negative`, `ck_inventory_movement_direction`, `ck_inventory_movement_positive`).
+  - `backend/apps/purchases/models.py`: `Supplier`, `Purchase`, `PurchaseLine` y `SupplierPayment` con las restricciones `ux_purchases_supplier_doc`, `ck_purchases_amounts_non_negative`, `ck_purchases_paid_lte_total`, `ck_purchases_credit_requires_due_date` y `ck_purchases_line_product_xor_expense`.
+  - `backend/apps/inventory/migrations/0003_triggers_views_and_seed.py`:
+    - Instala el trigger PostgreSQL `trg_inventory_movement_append_only` (`fn_append_only`) para inmutabilidad de Kárdex (`RNF-04`) y la vista SQL `purchases_v_purchase_book`.
+    - Semilla de 4 ubicaciones (`Vitrina`, `Cabina 1`, `Cabina 2`, `General`), 3 proveedores autorizados (`Distribuidora Bella`, `Insumos Pro`, `Color & Style`), 8 artículos de inventario (4 Vitrina = `61 u` valuados en `$889.50` costo / `$746.50` PVP; 4 Cabina = `48 u/L` valuados en `$551.50` costo, conciliando 100% con las cuentas de Mayor `110501` y `110502`), y los 3 CCF de Noviembre 2026 (`CCF-4521` `$150.00 + $19.50 = $169.50`, `CCF-4522` `$90.00 + $11.70 = $101.70`, `CCF-4530` `$60.00 + $7.80 = $67.80` → `$300.00` gravado, `$39.00` IVA, `$339.00` total; distribución 50% Vitrina / 50% Cabina).
+
+- **Servicios de Negocio y Contabilización Automática**:
+  - `backend/apps/inventory/services/stock.py`:
+    - `register_movement()`: Motor de Kárdex por Costo Promedio Ponderado (NIIF para las PYMES Sección 13, `RF-INV-05..07`), bloqueo de existencias negativas (`InsufficientStockError`, `RF-INV-11`) y separación estricta entre Vitrina (`110501`) y Cabina (`110502`) (`RegimeMismatchError`, `RN-07`).
+    - `create_adjustment()`: Ajustes físicos por conteo, deterioro, vencimiento o merma con partida automática contra Faltantes (`420102`) o Sobrantes (`5201`) (`RF-INV-08`).
+    - `register_consumption()`: Consumo técnico de insumos por estación de cabina con partida automática `Debe 410201 Costo de insumos de servicios / Haber 110502 Cabina` (`RF-INV-09`).
+    - `transfer_stock()`: Transferencias entre estaciones (`Bodega General` ↔ `Cabina 1` / `Cabina 2`) y reclasificación contable entre regímenes (`RF-INV-12`).
+    - `get_inventory_summary()` y `get_product_kardex()`.
+  - `backend/apps/purchases/services/purchases.py`:
+    - `create_purchase()`: Registro atómico de compras CCF/Factura con entrada a Kárdex, recálculo de costo promedio ponderado, IVA Crédito Fiscal 13% (`110401`), percepción 1% (`110402`) y partida automática hacia `110101 Caja` (contado) o `210101 Proveedores` (crédito) (`RF-COM-02..04`).
+    - `register_supplier_payment()`: Abonos parciales o liquidación total de cuentas por pagar a proveedores (`RF-COM-09`).
+    - `void_purchase()`: Anulación de compras con reversión de stock en Kárdex y partida de reversión en Libro Diario (`RF-COM-11`).
+    - `get_purchase_book()`: Libro de Compras con KPIs, distribución porcentual Vitrina vs. Cabina y reporte de retenciones/percepciones IVA (`RF-COM-05..10`).
+
+- **Interfaces Frontend (Vue 3 + Pinia)**:
+  - `frontend/src/modules/inventory/views/InventarioMixtoView.vue` (**Vista 2 · Inventario Mixto**): Diseño fiel al mock-up con cinta superior de responsabilidad (`FERDINAND`), 3 tarjetas KPI con recuadro inferior (`61 items` Vitrina, `48 items` Cabina, `2 items` Alerta Stock Crítico `Acondicionador & Serum`), paneles duales lado a lado (`Vitrina · para la venta` en vino `#6b1a24` cuenta `1105-01` y `Cabina · insumos de servicio` en negro `#1b1a19` cuenta `1105-02`), iconos vectoriales SVG de línea fina (cero emojis) y modales interactivos para `+ Agregar producto`, `Ajuste de stock`, `Consumo cabina`, `Transferir` y `Tarjeta Kárdex`.
+  - `frontend/src/modules/purchases/views/LibroComprasView.vue` (**Vista 4 · Libro de Compras**): Diseño fiel al mock-up con cinta dorada oscura (`VÍCTOR · JEFE DE COMPRAS & ALMACÉN`), 4 tarjetas KPI (`$339.00` Total Compras, `$300.00` Base Gravada, `$39.00` IVA Crédito Fiscal, `3` Proveedores Activos), tabla oscura con filtros por período/proveedor/destino, barra lateral con `Distribución por Destino` (`50%` Vitrina `$169.50` / `50%` Cabina `$169.50`) y tarjeta `Certificación Fiscal · Comprobantes CCF Válidos`, 3 tarjetas inferiores de proveedores destacados, y modales para `+ Registrar compra`, `Proveedores`, `Ver Retenciones IVA`, `Pagar` y `Anular`.
+
+- **Pruebas Automatizadas (`backend/apps/inventory/tests/test_inventory_and_purchases.py`)**:
+  - 8 pruebas de integración verificando inventario semilla y conciliación Kárdex vs. Mayor (`inventory_matches_ledger` en cierre mensual P3), libro de compras semilla, recálculo de costo promedio ponderado en compras, bloqueo de stock negativo y `RN-07`, ajustes/consumos/transferencias, pago y anulación de compras, y descargo automático de stock en ventas de Vitrina (`30 passed` en total en la suite de `pytest`).

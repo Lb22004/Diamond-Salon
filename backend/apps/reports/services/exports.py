@@ -302,12 +302,12 @@ def _build_book_dataset(
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT p.issue_date, p.doc_number, s.name, s.nrc, p.destination,
-                           p.subtotal, p.iva_amount, p.total
+                    SELECT p.doc_date, p.doc_number, s.name, COALESCE(s.nrc, '—'), p.destination,
+                           p.taxable_amount, p.iva_credit, p.total
                     FROM purchases_purchase p
                     JOIN purchases_supplier s ON s.id = p.supplier_id
                     WHERE p.period_id = %s AND p.status = 'REGISTERED'
-                    ORDER BY p.issue_date, p.id
+                    ORDER BY p.doc_date, p.id
                     """,
                     [resolved_period.pk],
                 )
@@ -335,6 +335,50 @@ def _build_book_dataset(
             "headers": headers,
             "rows": rows,
             "totals": ["", "", "", "", "TOTALES DEL PERÍODO", f"{tot_sub:.2f}", f"{tot_iva:.2f}", f"{tot_all:.2f}"],
+            "money_cols": [5, 6, 7],
+        }
+
+    if b in ("inventory", "inventario", "kardex"):
+        tables = set(connection.introspection.table_names())
+        headers = ["SKU", "Producto / Insumo", "Régimen", "Ubicación", "Existencia", "Costo Promedio", "PVP Unitario", "Valuación Costo"]
+        rows = []
+        tot_val = Decimal("0.00")
+        if "inventory_product" in tables and "inventory_stock" in tables:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT p.sku, p.name, p.inventory_type, COALESCE(l.name, 'General'),
+                           COALESCE(s.quantity, 0), p.average_cost, p.sale_price
+                    FROM inventory_product p
+                    LEFT JOIN inventory_stock s ON s.product_id = p.id
+                    LEFT JOIN inventory_location l ON l.id = s.location_id
+                    WHERE p.is_active = true
+                    ORDER BY p.inventory_type DESC, p.sku
+                    """
+                )
+                for r in cursor.fetchall():
+                    qty = Decimal(str(r[4] or 0))
+                    avg = Decimal(str(r[5] or 0))
+                    pvp = Decimal(str(r[6])) if r[6] is not None else None
+                    val = (qty * avg).quantize(Decimal("0.01"))
+                    tot_val += val
+                    rows.append([
+                        str(r[0]),
+                        str(r[1]),
+                        "Vitrina (Venta)" if r[2] == "VITRINA" else "Cabina (Servicio)",
+                        str(r[3]),
+                        f"{qty:.2f}",
+                        f"{avg:.2f}",
+                        f"{pvp:.2f}" if pvp is not None else "—",
+                        f"{val:.2f}",
+                    ])
+        return {
+            "title": "REPORTE DE INVENTARIO MIXTO Y VALUACIÓN KÁRDEX (VITRINA VS. CABINA)",
+            "subtitle": f"Período contable: {period_label}",
+            "filename_stem": f"inventario_mixto_{resolved_period.code if resolved_period else '2026-11'}",
+            "headers": headers,
+            "rows": rows,
+            "totals": ["", "VALUACIÓN TOTAL INVENTARIO", "", "", "", "", "", f"{tot_val:.2f}"],
             "money_cols": [5, 6, 7],
         }
 
