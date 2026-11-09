@@ -190,3 +190,81 @@ Mounted under `/api/v1/`:
   - Verified `InvalidAccountError` on parent accounts (`RN-04`) and `ClosedPeriodError` on closed periods (`"El período 10/2026 está cerrado"`).
   - Verified `reverse_entry()` mirror-image creation, `REVERSED` status transition, and double-reversal prevention.
   - Verified `/api/v1/accounts/?tree=1` hierarchy rules (`RF-CAT-04`, `RF-CAT-05`) and `/api/v1/journal-entries/` draft/post/reverse API workflow (`13 passed` total across `core` + `accounting`).
+
+
+---
+
+## [2026-11-08] Person 3 (P3 · Libro Mayor, Balance de Comprobación, Cierre Mensual & Exportes)
+
+**Owner:** Person 3 (P3 — Reporting, Closing & Exports Lead)  
+**Scope:** Complete full-stack implementation of P3 deliverables across Sprints 0, 1, 2, and 3 per [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md), [docs/SRS.md](docs/SRS.md), and [docs/database/DB_DESIGN.md](docs/database/DB_DESIGN.md).
+
+---
+
+### 1. Backend Changes (`backend/apps/reports/` & `backend/config/urls.py`)
+
+#### 1.1 Reporting SQL Views Migration (`backend/apps/reports/migrations/0001_reporting_sql_views.py`)
+Installed the 3 database reporting views defined in `docs/database/schema.sql`:
+- `accounting_v_journal_book`: Chronological journal lines view with entry metadata and period reference.
+- `accounting_v_general_ledger`: Windowed running-balance (`SUM(...) OVER (PARTITION BY account_id ORDER BY entry_date, entry_number, line_no)`) view respecting account nature (`DEBIT` vs `CREDIT`).
+- `accounting_v_trial_balance`: Period-grouped debit/credit movement totals and net balances per leaf account.
+
+#### 1.2 General Ledger, Trial Balance & NIIF Financial Statements (`backend/apps/reports/services/ledger.py`)
+- **`get_account_ledger(account_identifier, period, date_from, date_to)` (`RF-MAY-01..08`)**:
+  - Resolves leaf or grouping account (prefix rollup) and calculates `opening_balance` strictly prior to `date_from`, `effective_initial_balance` (handling initial `OPENING` entries), chronological movements with running `resulting_balance`, `debit_total`, `credit_total`, `closing_balance`, `variation_pct`, and `operational_inflow`.
+  - Verifies period-wide trial balance equality (`trial_balance_ok`).
+- **`get_simultaneous_summary(cutoff_date)` (`RF-MAY-08`)**:
+  - Returns live majorized summary cards for key salon accounts (`110101`, `110102`, `110501`, `110502`, `110601`, `2107`, `210101`, `5101`, `5102`).
+- **`get_trial_balance(period)` (`RF-MAY-10`)**:
+  - Computes 8-column Balance de Comprobación de Sumas y Saldos (`opening_balance`, `debit_total`, `credit_total`, `closing_debit`, `closing_credit`) and verifies `Σ Debe = Σ Haber`.
+- **`get_financial_statements(period)` (`RF-REP-02`, `RF-REP-03`)**:
+  - Computes **Estado de Resultados Integral** (`Ingresos`, `Costos Directos / Cabina`, `Utilidad Bruta`, `Gastos Operativos`, `Utilidad Neta`) and **Balance General / Estado de Situación Financiera** (`Activos`, `Pasivos`, `Patrimonio + Resultado del Ejercicio Actual`, verifying `Activo = Pasivo + Patrimonio`).
+
+#### 1.3 Monthly Closing & IVA Liquidation Service (`backend/apps/reports/services/closing.py`)
+- **`get_close_preview(period)` (`RF-CIE-02`, `RF-CIE-03`)**:
+  - Evaluates the 4 pre-close checklist rules: (1) zero `DRAFT` journal entries in the period, (2) Trial Balance squared (`Σ Debe = Σ Haber`), (3) 100% of issued sales and registered purchases posted to the journal, and (4) inventory Kárdex valuation reconciled with accounts `110501` (Vitrina) and `110502` (Cabina) (`RN-13`).
+  - Computes the monthly IVA liquidation preview comparing `2107 IVA Débito Fiscal` vs `110601 IVA Crédito Fiscal` and proposes the `CLOSING` journal entry lines (`2108 IVA por Pagar` or credit remainder).
+- **`close_period(period, *, user, post_iva_liquidation=True)` (`RF-CIE-03`, `RF-CIE-04`)**:
+  - Atomically locks the `AccountingPeriod` row, posts the `CLOSING` IVA liquidation entry via P2's `PostingService.post_entry()`, snapshots all leaf account balances into `accounting_period_balance` (`PeriodBalance`), transitions the period to `CLOSED`, advances the active period if applicable, and logs `AuditLog.Action.CLOSE`.
+
+#### 1.4 Official PDF & Excel Export Engine (`backend/apps/reports/services/exports.py`)
+- **`export_book(book, fmt, period, account, date_from, date_to, user)` (`RF-REP-01..04`, `RN-15`)**:
+  - Generates institutional PDF (`reportlab`) and formatted Excel (`openpyxl`) workbooks for `chart`, `journal`, `ledger`, `trial-balance`, `financial-statements`, `sales` (`sales-fcf`, `sales-ccf`), and `purchases`.
+  - Includes legal header (`Company.legal_name`, `trade_name`, `nit`, `nrc`, active period, emission timestamp, and column totals) and records an `AuditLog.Action.EXPORT` entry on every download.
+
+#### 1.5 REST API Endpoints (`backend/apps/reports/views.py`, `urls.py`, `backend/config/urls.py`)
+Mounted under `/api/v1/` and `/api/v1/reports/`:
+- `GET /api/v1/ledger/`
+- `GET /api/v1/trial-balance/`
+- `GET /api/v1/financial-statements/`
+- `GET/POST /api/v1/periods/<int:pk>/close/`
+- `GET /api/v1/exports/<str:book>/?format=pdf|xlsx` (with custom `IgnoreClientContentNegotiation` so DRF does not intercept `?format=pdf|xlsx`).
+
+---
+
+### 2. Frontend Changes (`frontend/src/modules/reports/`)
+
+- **`frontend/src/modules/reports/components/PeriodCloseModal.vue` (`RF-CIE-01..05`)**:
+  - Interactive modal displaying period status, the 4 pre-close validation checks (`OK` / `BLOQUEANTE`), the 4 IVA liquidation summary cards (`2107 IVA Débito`, `110601 IVA Crédito`, `2108 IVA por Pagar`, `Remanente Crédito`), the proposed closing entry preview table, **Confirmar Cierre Mensual**, and Admin-only **Reabrir Período** with mandatory audit reason.
+- **`frontend/src/modules/reports/views/LibroMayorView.vue` (Vista 6 · Libro Mayor, Balance y Estados Financieros)**:
+  - **Tab 1 — Libro Mayor Analítico (`RF-MAY-01..09`)**:
+    - Account selector dropdown, `DateRangePicker`, and 9 quick-access account chips.
+    - Selected account banner with code badge, classification, nature badge, inventory regime badge, and `"✓ Sumas iguales verificadas: OK"` indicator.
+    - 4 KPI cards (`Apertura / Base Inicial`, `Total Cargos (Debe)`, `Total Abonos (Haber)`, `Saldo de Cierre Actual` with variation %).
+    - Chronological movements table with sticky `SALDO INIC.` row, click-through links to `/diario?entry=<id>`, running `resulting_balance`, and `SUMAS Y SALDO DE CIERRE` footer.
+    - SVG Donut chart (`Evolución de la Cuenta`) comparing initial balance, operational inflows, and outflows.
+    - Clickable **Resumen Mayorizado Simultáneo** grid of key salon accounts.
+  - **Tab 2 — Balance de Comprobación (`RF-MAY-10`)**:
+    - 9-column trial balance table with click-through to inspect any account's analytical ledger and verified `SUMAS IGUALES` footer.
+  - **Tab 3 — Estados Financieros NIIF (`RF-REP-02`, `RF-REP-03`)**:
+    - Side-by-side **Estado de Resultados Integral** and **Estado de Situación Financiera (Balance General)** with `Activo = Pasivo + Patrimonio` verification badge.
+
+---
+
+### 3. Tests & Verification
+- **`backend/apps/reports/tests/test_reports.py`**:
+  - Verified `get_account_ledger` for `110101 Caja general` in Nov 2026 (`opening_balance=0.00`, `effective_initial_balance=1850.00`, `debit_total=1887.00`, `credit_total=101.70`, `closing_balance=1785.30`, 4 chronological movements).
+  - Verified `get_trial_balance` and `get_financial_statements` equality (`is_balanced=True`).
+  - Verified `get_close_preview` blocks closing when a `DRAFT` entry exists and turns green once resolved.
+  - Verified `close_period` posts the `CLOSING` IVA liquidation entry, snapshots `PeriodBalance` rows (`110101` = `$1,785.30`, `2107` = `$0.00`), locks the period (`CLOSED`), and blocks subsequent postings (`ClosedPeriodError`).
+  - Verified `/api/v1/exports/ledger/?format=pdf` and `/api/v1/exports/trial-balance/?format=xlsx` binary headers (`%PDF` and `PK`) and `EXPORT` audit logs (`18 passed` across all backend suites).
