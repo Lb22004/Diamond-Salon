@@ -500,7 +500,7 @@
         </span>
       </div>
       <div class="ds-header-actions-row">
-        <ExportButton endpoint="/exports/inventory/" label="Exportar inventario" />
+        <ExportButton book="inventory" label="Exportar inventario" />
       </div>
     </div>
 
@@ -905,7 +905,7 @@ const cabinaLocations = computed(() =>
 
 async function fetchSummary() {
   try {
-    const { data } = await client.get('/inventory/summary/', {
+    const { data } = await client.get('/v1/inventory/summary/', {
       params: {
         search_vitrina: searchVitrina.value,
         search_cabina: searchCabina.value,
@@ -1016,7 +1016,7 @@ function openTransferModal() {
 async function openKardexModal(item) {
   clearMessages()
   try {
-    const { data } = await client.get(`/inventory/products/${item.id}/kardex/`)
+    const { data } = await client.get(`/v1/inventory/products/${item.id}/kardex/`)
     kardexData.value = data
     showKardexModal.value = true
   } catch (err) {
@@ -1028,7 +1028,7 @@ async function submitNewProduct() {
   clearMessages()
   submitting.value = true
   try {
-    await client.post('/inventory/products/', productForm.value)
+    await client.post('/v1/inventory/products/', productForm.value)
     showProductModal.value = false
     feedbackMsg.value = 'Artículo registrado exitosamente en el catálogo de inventario.'
     await fetchSummary()
@@ -1043,7 +1043,7 @@ async function submitAdjustment() {
   clearMessages()
   submitting.value = true
   try {
-    const { data } = await client.post('/inventory/adjustments/', {
+    const { data } = await client.post('/v1/inventory/adjustments/', {
       adjustment_date: adjustmentForm.value.adjustment_date,
       reason: adjustmentForm.value.reason,
       notes: adjustmentForm.value.notes,
@@ -1069,7 +1069,7 @@ async function submitConsumption() {
   clearMessages()
   submitting.value = true
   try {
-    const { data } = await client.post('/inventory/consumptions/', {
+    const { data } = await client.post('/v1/inventory/consumptions/', {
       consumption_date: consumptionForm.value.consumption_date,
       location: consumptionForm.value.location,
       notes: consumptionForm.value.notes,
@@ -1095,7 +1095,7 @@ async function submitTransfer() {
   clearMessages()
   submitting.value = true
   try {
-    await client.post('/inventory/transfers/', {
+    await client.post('/v1/inventory/transfers/', {
       transfer_date: transferForm.value.transfer_date,
       product_id: transferForm.value.product_id,
       from_location: transferForm.value.from_location,

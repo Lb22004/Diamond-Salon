@@ -20,4 +20,17 @@ urlpatterns = [
     path("api/v1/purchases/", include("apps.purchases.urls")),
     path("api/v1/", include("apps.inventory.urls")),
     path("api/v1/", include("apps.purchases.urls")),
+
+    # Direct api prefixes for maximum backwards-compatibility with frontend calls
+    path("api/", include("apps.core.urls")),
+    path("api/", include("apps.accounting.urls")),
+    path("api/accounting/", include("apps.accounting.urls")),
+    path("api/", include("apps.reports.urls")),
+    path("api/reports/", include("apps.reports.urls")),
+    path("api/", include("apps.sales.urls")),
+    path("api/sales/", include("apps.sales.urls")),
+    path("api/inventory/", include("apps.inventory.urls")),
+    path("api/purchases/", include("apps.purchases.urls")),
+    path("api/", include("apps.inventory.urls")),
+    path("api/", include("apps.purchases.urls")),
 ]

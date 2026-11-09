@@ -17,8 +17,9 @@ const localError = ref('')
 const demoAccounts = [
   { user: 'admin', label: 'Maira · ADMIN', role: 'ADMIN' },
   { user: 'contador', label: 'Jose Roberto · CONTADOR', role: 'ACCOUNTANT' },
-  { user: 'auditor', label: 'Ferdinand · AUDITOR', role: 'AUDITOR' },
   { user: 'compras', label: 'Víctor · COMPRAS', role: 'PURCHASING' },
+  { user: 'estilista', label: 'Ferdinand · ESTILISTA / CAJA', role: 'CASHIER' },
+  { user: 'auditor', label: 'Auditoría Externa', role: 'AUDITOR' },
   { user: 'cajero', label: 'Valeria · CAJA', role: 'CASHIER' },
   { user: 'lectura', label: 'Gerencia · LECTURA', role: 'READONLY' },
 ]

@@ -1038,8 +1038,8 @@ const previewTotal = computed(() =>
 async function fetchCatalogs() {
   try {
     const [supResp, prodResp] = await Promise.all([
-      client.get('/purchases/suppliers/'),
-      client.get('/inventory/products/'),
+      client.get('/v1/purchases/suppliers/'),
+      client.get('/v1/inventory/products/'),
     ])
     suppliers.value = supResp.data.results || supResp.data
     products.value = prodResp.data.results || prodResp.data
@@ -1050,7 +1050,7 @@ async function fetchCatalogs() {
 
 async function fetchPurchaseBook() {
   try {
-    const { data } = await client.get('/purchases/purchase-book/', {
+    const { data } = await client.get('/v1/purchases/purchase-book/', {
       params: {
         period: periodStore.selectedPeriodId || undefined,
         supplier: filterSupplier.value || undefined,
@@ -1114,7 +1114,7 @@ async function submitPurchase() {
   errorMsg.value = ''
   submitting.value = true
   try {
-    const { data } = await client.post('/purchases/purchases/', {
+    const { data } = await client.post('/v1/purchases/purchases/', {
       supplier_id: purchaseForm.value.supplier_id,
       doc_type: purchaseForm.value.doc_type,
       doc_number: purchaseForm.value.doc_number,
@@ -1146,7 +1146,7 @@ async function submitPayment() {
   submitting.value = true
   try {
     const { data } = await client.post(
-      `/purchases/purchases/${selectedPurchase.value.id}/payments/`,
+      `/v1/purchases/purchases/${selectedPurchase.value.id}/payments/`,
       paymentForm.value,
     )
     showPaymentModal.value = false
@@ -1165,7 +1165,7 @@ async function submitVoid() {
   errorMsg.value = ''
   submitting.value = true
   try {
-    await client.post(`/purchases/purchases/${selectedPurchase.value.id}/void/`, {
+    await client.post(`/v1/purchases/purchases/${selectedPurchase.value.id}/void/`, {
       reason: voidReason.value,
     })
     showVoidModal.value = false
