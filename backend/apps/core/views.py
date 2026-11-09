@@ -561,7 +561,7 @@ class GlobalSearchView(APIView):
                         """
                         SELECT code, name, classification
                         FROM accounting_account
-                        WHERE code ILIKE %s OR name ILIKE %s
+                        WHERE LOWER(code) LIKE LOWER(%s) OR LOWER(name) LIKE LOWER(%s)
                         ORDER BY code ASC
                         LIMIT 6
                         """,
@@ -582,7 +582,8 @@ class GlobalSearchView(APIView):
                         """
                         SELECT id, entry_number, entry_date, description
                         FROM accounting_journal_entry
-                        WHERE CAST(entry_number AS TEXT) ILIKE %s OR description ILIKE %s
+                        WHERE LOWER(CAST(entry_number AS TEXT)) LIKE LOWER(%s)
+                           OR LOWER(description) LIKE LOWER(%s)
                         ORDER BY entry_date DESC, id DESC
                         LIMIT 5
                         """,
@@ -604,7 +605,7 @@ class GlobalSearchView(APIView):
                         """
                         SELECT id, doc_type, doc_number, sale_date, total
                         FROM sales_sale
-                        WHERE doc_number ILIKE %s
+                        WHERE LOWER(doc_number) LIKE LOWER(%s)
                         ORDER BY sale_date DESC
                         LIMIT 5
                         """,
@@ -625,7 +626,7 @@ class GlobalSearchView(APIView):
                         """
                         SELECT id, doc_type, doc_number, purchase_date, total
                         FROM purchases_purchase
-                        WHERE doc_number ILIKE %s
+                        WHERE LOWER(doc_number) LIKE LOWER(%s)
                         ORDER BY purchase_date DESC
                         LIMIT 5
                         """,

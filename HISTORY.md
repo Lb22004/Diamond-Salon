@@ -112,3 +112,81 @@ Built all shared UI components defined in `SRS §7.1`:
   - Verified JWT login (`POST /api/v1/auth/token/`) and `LOGIN` audit entry.
   - Verified RBAC permissions across `ADMIN`, `AUDITOR`, and `CASHIER` roles on `/api/v1/users/`, `/api/v1/company/`, and `/api/v1/audit-log/`.
   - Verified `/api/v1/dashboard/summary/`, `/api/v1/search/`, and `/api/v1/notifications/`.
+
+
+---
+
+## [2026-11-08] Person 2 (P2 · Núcleo Contable: Catálogo de Cuentas, Libro Diario & Motor de Partidas)
+
+**Owner:** Person 2 (P2 — Accounting Core Lead: Catálogo & Diario)  
+**Scope:** Complete full-stack implementation of P2 deliverables across Sprints 0, 1, 2, and 3 per [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md), [docs/SRS.md](docs/SRS.md), and [docs/database/DB_DESIGN.md](docs/database/DB_DESIGN.md).
+
+---
+
+### 1. Backend Changes (`backend/apps/accounting/` & `backend/config/urls.py`)
+
+#### 1.1 Database Models & Constraints (`backend/apps/accounting/models.py`)
+Implemented all `accounting_*` tables matching `docs/database/schema.sql`:
+- **`Account` (`accounting_account`)**:
+  - Hierarchical NIIF PYMES account model (`code` numeric unique, `name`, self-FK `parent` `PROTECT`, `level` `1..6`, `account_type`, `nature`, `classification`, `accepts_entries`, `inventory_type` ∈ `VITRINA`/`CABINA`, `niif_reference`, `debit_rule`, `credit_rule`, `is_active`).
+  - Enforced `ix_account_parent`, `ix_account_code_prefix`, `level BETWEEN 1 AND 6`, and `(level = 1) = (parent_id IS NULL)`.
+- **`AccountMapping` (`accounting_account_mapping`)**:
+  - Configurable business-event to account mapping (`key` PK, `account` FK `PROTECT`, `description`) enforcing `RN-12` (zero hard-coded account codes in Python).
+- **`JournalEntry` (`accounting_journal_entry`)**:
+  - Double-entry header (`period` FK `PROTECT`, sequential `entry_number` per period assigned on post, `entry_date`, `description`, `entry_type`, `source_app`, `source_id`, `status` ∈ `DRAFT`/`POSTED`/`REVERSED`, `reversal_of` `OneToOneField` `PROTECT`, `total_debit`, `total_credit`, `created_by`, `posted_by`, `posted_at`, `created_at`).
+  - Enforced `UNIQUE(period, entry_number)`, `ix_entry_date`, `ix_entry_source`, `ck_accounting_entry_posted_meta`, and `ck_accounting_entry_balanced` (`total_debit = total_credit > 0` when not `DRAFT`).
+- **`JournalEntryLine` (`accounting_journal_entry_line`)**:
+  - Individual debit/credit lines (`entry` FK `CASCADE`, `line_no`, `account` FK `PROTECT`, `description`, `debit`, `credit`) with `UNIQUE(entry, line_no)`, `ix_line_account`, non-negative check, and XOR check `(debit > 0) <> (credit > 0)`.
+- **`PeriodBalance` (`accounting_period_balance`)**:
+  - Account balance snapshot per closed period (`UNIQUE(account, period)`) ready for P3's monthly closing service.
+
+#### 1.2 Migration, NIIF PYMES Seed & PostgreSQL Triggers (`backend/apps/accounting/migrations/0001_initial_and_seed.py`)
+- Created all `accounting_*` tables, constraints, and indexes.
+- Installed PostgreSQL immutability triggers (`fn_journal_entry_guard` / `trg_journal_entry_guard` and `fn_journal_line_guard` / `trg_journal_line_guard` from `docs/database/schema.sql`).
+- Seeded all 45 NIIF PYMES accounts (Classes 1–5) from `docs/database/seed.sql` enriched with NIIF references and dynamic debit/credit rules.
+- Seeded all 17 `AccountMapping` keys (`CASH`, `BANK`, `ACCOUNTS_RECEIVABLE`, `INVENTORY_VITRINA`, `INVENTORY_CABINA`, `IVA_CREDIT`, `IVA_PERCEIVED`, `ACCOUNTS_PAYABLE`, `IVA_DEBIT`, `IVA_PAYABLE`, `COST_OF_SALES`, `SERVICE_SUPPLY_COST`, `INVENTORY_SHORTAGE`, `INVENTORY_SURPLUS`, `INCOME_SERVICES`, `INCOME_PRODUCTS`, `RETAINED_EARNINGS`).
+- Seeded 7 balanced November 2026 journal entries matching the SRS/mock-up scenario (Opening entry, Vitrina CCF purchase, Cabina CCF purchase, Service FCF sale, Product FCF sale + cost of sales, Cabina supply consumption, Supplier payment).
+
+#### 1.3 Posting Engine & Exceptions (`backend/apps/accounting/exceptions.py`, `backend/apps/accounting/services/posting.py`)
+Implemented the exact cross-module service contracts specified in `DB_DESIGN.md §6`:
+- `LineDTO`: Transfer object supporting account instance, ID, mapping key, or numeric code.
+- `get_account(key_or_identifier) -> Account`: Resolves accounts from `AccountMapping` or code/ID.
+- `create_draft_entry(...)`, `update_draft_entry(...)`, `delete_draft_entry(...)`: Draft lifecycle operations enforcing `RN-02`, `RN-03`, and `RN-04`.
+- `post_draft_entry(entry, *, user) -> JournalEntry`: Validates ≥ 2 lines, `Σ Debe == Σ Haber > 0` (`UnbalancedEntryError("La partida no está cuadrada (diferencia $X.XX)")`), open period (`ClosedPeriodError`), active leaf accounts (`InvalidAccountError`), assigns the next sequential `entry_number` in the period with `select_for_update()`, transitions `DRAFT -> POSTED`, and logs `POST` in `AuditLog`.
+- `post_entry(...) -> JournalEntry`: Atomic two-step (`DRAFT` creation + `POSTED` transition) contract used by Sales (P4), Inventory/Purchases (P5), and Period Close (P3).
+- `reverse_entry(entry, *, reason, user, reversal_date=None) -> JournalEntry`: Creates and posts a mirror-image `REVERSAL` entry (`reversal_of=entry`), marks the original `REVERSED`, and logs `REVERSE` in `AuditLog` (`RN-02`, `RF-DIA-04`).
+
+#### 1.4 REST API Endpoints (`backend/apps/accounting/serializers.py`, `views.py`, `urls.py`, `admin.py`)
+Mounted under `/api/v1/`:
+- `GET/POST/PATCH/DELETE /api/v1/accounts/` (`?tree=1`, `?account_type=`, `?accepts_entries=`, `?search=`, `?period=`):
+  - Computes leaf movements and rolls up balances to parent accounts by code prefix (`DB_DESIGN.md §5`), returns class filter counts (`RF-CAT-07`) and `"Estado del plan: BALANCEADO"` verification (`RF-CAT-12`).
+  - Enforces cumulative decimal coding (`RF-CAT-02`), blocks child creation under accounts with movements (`RF-CAT-04`), locks `code`/`nature`/`parent` once an account has movements (`RF-CAT-05`), and soft-deactivates accounts with zero balance (`RF-CAT-06`).
+- `GET/PATCH /api/v1/account-mappings/`: Lists and updates configurable event mappings (`RF-CAT-11`).
+- `GET/POST/PUT/DELETE /api/v1/journal-entries/`, `GET /api/v1/journal-entries/summary/`, `POST /api/v1/journal-entries/{id}/post/`, `POST /api/v1/journal-entries/{id}/reverse/`: Full Libro Diario and manual journal entry workflow (`RF-DIA-01..07`).
+
+---
+
+### 2. Frontend Changes (`frontend/src/modules/accounting/` & `frontend/src/styles/main.css`)
+
+- **`frontend/src/modules/accounting/views/CatalogoCuentasView.vue` (Vista 1 · Catálogo de cuentas)**:
+  - Hierarchical tree table with collapsible parent rows, indentation by level, `VITRINA`/`CABINA` regime badges (`RF-CAT-09`), NIIF reference tags, nature badges, and rolled-up period balances.
+  - Instant search + class filter chips with live counts (`Todos`, `1 · Activos`, `2 · Pasivos`, `3 · Patrimonio`, `4 · Costos / Gastos`, `5 · Ingresos`, `RF-CAT-07`).
+  - `(i) Reglas` modal (`RF-CAT-08`) displaying total cargos, abonos, current balance, `"¿Cuándo se CARGA (Debe)?"`, `"¿Cuándo se ABONA (Haber)?"`, and a 1-click button to open the account in **Libro Mayor**.
+  - `+ Nueva cuenta` / `Editar` modal (`RF-CAT-03`, `RF-CAT-05`) with automatic parent code/level/nature inheritance and field locks when movements exist.
+  - `⚙ Mapeo de Partidas` modal (`RF-CAT-11`) for editing `AccountMapping` entries.
+- **`frontend/src/modules/accounting/views/LibroDiarioView.vue` (Vista 5 · Libro diario)**:
+  - 4 KPI cards (`Partidas Mayorizadas`, `Borradores en Preparación`, `Total Cargos (Debe)`, `Total Abonos (Haber)` with `"Sumas iguales"` badge).
+  - Filter toolbar (`SearchInput`, `DateRangePicker`, `Origen`, `Estado`, and `Cuenta analítica`).
+  - Chronological journal entry cards displaying `Partida N.º X`, date, origin & status badges, click-through link to source document (`RF-DIA-06`), reversal tags, line items with links to `/libro-mayor`, entry subtotals, and period grand totals (`RF-DIA-01`).
+  - `+ Nueva partida manual` modal (`RF-DIA-02`, `RF-DIA-03`) with dynamic N-line editor, live difference calculator, **Guardar Borrador (`DRAFT`)**, and **Mayorizar Partida (`POSTED`)**.
+  - Audited **Revertir partida** confirmation dialog with mandatory reason (`RF-DIA-04`).
+
+---
+
+### 3. Tests & Verification
+- **`backend/apps/accounting/tests/test_accounting.py`**:
+  - Verified 45 NIIF PYMES accounts, 17 `AccountMapping` keys, and 7 initial November 2026 journal entries.
+  - Verified `post_entry()` sequential numbering and `UnbalancedEntryError` (`"La partida no está cuadrada (diferencia $1.00)"`).
+  - Verified `InvalidAccountError` on parent accounts (`RN-04`) and `ClosedPeriodError` on closed periods (`"El período 10/2026 está cerrado"`).
+  - Verified `reverse_entry()` mirror-image creation, `REVERSED` status transition, and double-reversal prevention.
+  - Verified `/api/v1/accounts/?tree=1` hierarchy rules (`RF-CAT-04`, `RF-CAT-05`) and `/api/v1/journal-entries/` draft/post/reverse API workflow (`13 passed` total across `core` + `accounting`).

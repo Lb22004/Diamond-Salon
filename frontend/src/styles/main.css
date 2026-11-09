@@ -1155,3 +1155,241 @@ body {
   border-color: var(--wine);
   background: var(--wine-soft);
 }
+
+/* Vista 1 · Catálogo de Cuentas & Vista 5 · Libro Diario (P2) */
+.ds-chip-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.ds-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.32rem 0.72rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.ds-filter-chip.is-active {
+  background: var(--wine);
+  border-color: var(--wine);
+  color: #fff;
+}
+
+.ds-filter-chip__count {
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.7rem;
+}
+
+.ds-filter-chip.is-active .ds-filter-chip__count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.ds-account-row--lvl-1 td {
+  background: #f3efe6;
+  font-weight: 700;
+}
+
+.ds-account-row--lvl-2 td {
+  background: #faf7f0;
+  font-weight: 600;
+}
+
+.ds-account-code {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-tree-toggle {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--wine);
+  padding: 0 0.2rem;
+}
+
+.ds-tree-leaf-dot {
+  color: var(--gold);
+  padding: 0 0.25rem;
+}
+
+.ds-account-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.ds-niif-tag {
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+  background: #f1ede4;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+}
+
+.ds-account-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.82rem;
+}
+
+.ds-rules-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+
+.ds-rule-box {
+  padding: 0.95rem 1.1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.ds-rule-box h4 {
+  margin: 0 0 0.45rem;
+  font-size: 0.84rem;
+}
+
+.ds-rule-box p {
+  margin: 0;
+  color: var(--ink-muted);
+  line-height: 1.45;
+}
+
+.ds-rule-box--debit {
+  background: var(--gold-soft);
+  border-left: 4px solid var(--gold);
+}
+
+.ds-rule-box--credit {
+  background: var(--wine-soft);
+  border-left: 4px solid var(--wine);
+}
+
+.ds-journal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ds-journal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--wine);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ds-journal-card--draft {
+  border-left-color: var(--gold);
+}
+
+.ds-journal-card--reversed {
+  border-left-color: var(--danger);
+  opacity: 0.88;
+}
+
+.ds-journal-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.15rem;
+  background: #faf7f0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.ds-journal-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.ds-journal-card__number {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--wine);
+}
+
+.ds-journal-card__date {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.ds-journal-card__concept {
+  margin: 0;
+  padding: 0.65rem 1.15rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-bottom: 1px solid #efece4;
+}
+
+.ds-table--compact th,
+.ds-table--compact td {
+  padding: 0.48rem 0.85rem;
+}
+
+.ds-account-link {
+  color: var(--wine);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.ds-account-link:hover {
+  text-decoration: underline;
+}
+
+.ds-reversal-tag {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.ds-journal-grand-total {
+  background: #1b1a19;
+  color: #fff;
+  padding: 1rem 1.35rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ds-journal-grand-total__numbers {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  font-size: 0.95rem;
+}
+
+.ds-journal-grand-total__numbers span {
+  color: var(--gold-bright);
+  font-size: 0.78rem;
+  margin-right: 0.45rem;
+}
