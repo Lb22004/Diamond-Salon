@@ -160,12 +160,12 @@ onMounted(() => {
         </div>
         <div class="ds-stat-row">
           <div>
-            <span class="ds-stat-row__label">Ventas de servicios (5101)</span>
+            <span class="ds-stat-row__label">Ventas de servicios (510101)</span>
             <div class="ds-stat-row__val"><MoneyCell :value="summary.sales.services_total" bold /></div>
             <small>{{ summary.sales.services_count }} atenciones facturadas</small>
           </div>
           <div>
-            <span class="ds-stat-row__label">Insumos en estación al costo (110502)</span>
+            <span class="ds-stat-row__label">Insumos en estación al costo (110402)</span>
             <div class="ds-stat-row__val"><MoneyCell :value="summary.inventory.cabina_value" bold /></div>
             <small>Compras período: {{ formatMoney(summary.purchases.cabina_total) }}</small>
           </div>
@@ -182,12 +182,12 @@ onMounted(() => {
         </div>
         <div class="ds-stat-row">
           <div>
-            <span class="ds-stat-row__label">Venta de productos (5102)</span>
+            <span class="ds-stat-row__label">Venta de productos (510201)</span>
             <div class="ds-stat-row__val"><MoneyCell :value="summary.sales.products_total" bold /></div>
             <small>{{ summary.sales.products_count }} facturas retail</small>
           </div>
           <div>
-            <span class="ds-stat-row__label">Inventario vitrina al costo (110501)</span>
+            <span class="ds-stat-row__label">Inventario vitrina al costo (110401)</span>
             <div class="ds-stat-row__val"><MoneyCell :value="summary.inventory.vitrina_value" bold /></div>
             <small>Compras período: {{ formatMoney(summary.purchases.vitrina_total) }}</small>
           </div>

@@ -59,7 +59,7 @@ class TestMonthlyClosingWorkflow:
             description="Borrador pendiente antes de cierre",
             lines=[
                 LineDTO(account="110101", debit=Decimal("10.00"), credit=Decimal("0.00")),
-                LineDTO(account="5101", debit=Decimal("0.00"), credit=Decimal("10.00")),
+                LineDTO(account="510101", debit=Decimal("0.00"), credit=Decimal("10.00")),
             ],
             user=admin,
         )
@@ -94,8 +94,8 @@ class TestMonthlyClosingWorkflow:
         pb_caja = PeriodBalance.objects.get(period=nov, account__code="110101")
         assert pb_caja.closing_balance == Decimal("1785.30")
 
-        # Verify PeriodBalance snapshot for 2107 IVA débito is now 0.00 after liquidation
-        pb_iva_deb = PeriodBalance.objects.get(period=nov, account__code="2107")
+        # Verify PeriodBalance snapshot for 210201 IVA débito is now 0.00 after liquidation
+        pb_iva_deb = PeriodBalance.objects.get(period=nov, account__code="210201")
         assert pb_iva_deb.closing_balance == Decimal("0.00")
 
         # Verify posting into the closed period is rejected
@@ -106,7 +106,7 @@ class TestMonthlyClosingWorkflow:
                 entry_type=JournalEntry.EntryType.MANUAL,
                 lines=[
                     LineDTO(account="110101", debit=Decimal("5.00"), credit=Decimal("0.00")),
-                    LineDTO(account="5101", debit=Decimal("0.00"), credit=Decimal("5.00")),
+                    LineDTO(account="510101", debit=Decimal("0.00"), credit=Decimal("5.00")),
                 ],
                 user=contador,
             )

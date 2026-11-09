@@ -56,9 +56,11 @@ def get_close_preview(period: AccountingPeriod) -> dict:
             unposted_ops += int(cursor.fetchone()[0] or 0)
     all_ops_posted_ok = unposted_ops == 0
 
-    # 4. Check inventory valuation matches 110501 and 110502 (RN-13)
-    ledger_vitrina = Decimal(row_by_code.get("110501", {}).get("closing_balance", "0.00"))
-    ledger_cabina = Decimal(row_by_code.get("110502", {}).get("closing_balance", "0.00"))
+    # 4. Check inventory valuation matches 110401 and 110402 (RN-13)
+    acc_inv_vit = get_account("INVENTORY_VITRINA")
+    acc_inv_cab = get_account("INVENTORY_CABINA")
+    ledger_vitrina = Decimal(row_by_code.get(acc_inv_vit.code, {}).get("closing_balance", "0.00"))
+    ledger_cabina = Decimal(row_by_code.get(acc_inv_cab.code, {}).get("closing_balance", "0.00"))
     kardex_vitrina = ledger_vitrina
     kardex_cabina = ledger_cabina
     inventory_reconciled_ok = True
@@ -117,7 +119,7 @@ def get_close_preview(period: AccountingPeriod) -> dict:
         },
         {
             "key": "inventory_matches_ledger",
-            "label": "Conciliación Inventario Kárdex vs Mayor (110501 / 110502)",
+            "label": f"Conciliación Inventario Kárdex vs Mayor ({acc_inv_vit.code} / {acc_inv_cab.code})",
             "ok": inventory_reconciled_ok,
             "detail": (
                 f"Vitrina ${ledger_vitrina:.2f} · Cabina ${ledger_cabina:.2f}"

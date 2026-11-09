@@ -126,26 +126,28 @@ def seed_sales_data(apps, schema_editor):
     )
 
     # 3. Beauty Services Catalog
-    acc_5101 = Account.objects.filter(code="5101").first()
-    if not acc_5101:
+    acc_510101 = Account.objects.filter(code="510101").first() or Account.objects.filter(code="5101").first()
+    acc_510102 = Account.objects.filter(code="510102").first() or acc_510101
+    acc_510103 = Account.objects.filter(code="510103").first() or acc_510101
+    if not acc_510101:
         return
 
     services_seed = [
-        ("SRV-001", "Servicio: corte y peinado", "STYLING", Decimal("25.00")),
-        ("SRV-002", "Servicio: manicura + esmaltado", "NAILS", Decimal("15.00")),
-        ("SRV-003", "Balayage & Colorimetría Couture", "COLOR", Decimal("85.00")),
-        ("SRV-004", "Ritual Keratina & Hidratación Profunda", "TREATMENT", Decimal("45.00")),
-        ("SRV-005", "Peinado de Gala & Maquillaje Editorial", "STYLING", Decimal("60.00")),
+        ("SRV-001", "Servicio: corte y peinado", "STYLING", Decimal("25.00"), acc_510101),
+        ("SRV-002", "Servicio: manicura + esmaltado", "NAILS", Decimal("15.00"), acc_510102),
+        ("SRV-003", "Balayage & Colorimetría Couture", "COLOR", Decimal("85.00"), acc_510101),
+        ("SRV-004", "Ritual Keratina & Hidratación Profunda", "TREATMENT", Decimal("45.00"), acc_510101),
+        ("SRV-005", "Peinado de Gala & Maquillaje Editorial", "STYLING", Decimal("60.00"), acc_510103),
     ]
     srv_map = {}
-    for code, name, cat, price in services_seed:
+    for code, name, cat, price, acc in services_seed:
         srv, _ = Service.objects.update_or_create(
             code=code,
             defaults={
                 "name": name,
                 "category": cat,
                 "price": price,
-                "income_account": acc_5101,
+                "income_account": acc,
                 "is_active": True,
             },
         )

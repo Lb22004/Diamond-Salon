@@ -26,14 +26,14 @@ from apps.core.models import AccountingPeriod, PeriodStatus, User
 @pytest.mark.django_db
 class TestChartOfAccountsAndPostingEngine:
     def test_seed_chart_mappings_and_entries(self):
-        assert Account.objects.count() == 45
+        assert Account.objects.count() == 82
         assert AccountMapping.objects.count() == 17
         assert get_account("CASH").code == "110101"
-        assert get_account("INVENTORY_VITRINA").code == "110501"
-        assert get_account("INVENTORY_CABINA").code == "110502"
-        assert get_account("IVA_DEBIT").code == "2107"
-        assert get_account("INCOME_SERVICES").code == "5101"
-        assert get_account("INCOME_PRODUCTS").code == "5102"
+        assert get_account("INVENTORY_VITRINA").code == "110401"
+        assert get_account("INVENTORY_CABINA").code == "110402"
+        assert get_account("IVA_DEBIT").code == "210201"
+        assert get_account("INCOME_SERVICES").code == "510101"
+        assert get_account("INCOME_PRODUCTS").code == "510201"
 
         # 7 initial November 2026 entries seeded
         nov = AccountingPeriod.objects.get(year=2026, month=11)
@@ -67,7 +67,7 @@ class TestChartOfAccountsAndPostingEngine:
             description="Partida descuadrada de prueba",
             lines=[
                 LineDTO(account="110101", debit=Decimal("10.00")),
-                LineDTO(account="5101", credit=Decimal("9.00")),
+                LineDTO(account="510101", credit=Decimal("9.00")),
             ],
             user=accountant,
         )
@@ -87,7 +87,7 @@ class TestChartOfAccountsAndPostingEngine:
                 entry_type=JournalEntry.EntryType.MANUAL,
                 lines=[
                     LineDTO(account="1101", debit=Decimal("50.00")),
-                    LineDTO(account="5101", credit=Decimal("50.00")),
+                    LineDTO(account="510101", credit=Decimal("50.00")),
                 ],
                 user=accountant,
             )
@@ -105,7 +105,7 @@ class TestChartOfAccountsAndPostingEngine:
                 description="Compra en período cerrado",
                 entry_type=JournalEntry.EntryType.PURCHASE,
                 lines=[
-                    LineDTO(account="110501", debit=Decimal("100.00")),
+                    LineDTO(account="110401", debit=Decimal("100.00")),
                     LineDTO(account="110101", credit=Decimal("100.00")),
                 ],
                 user=accountant,
@@ -158,7 +158,7 @@ class TestAccountingApiEndpoints:
         assert resp.status_code == 200
         data = resp.json()
         assert data["summary"]["is_balanced"] is True
-        assert data["summary"]["class_counts"]["ALL"] == 45
+        assert data["summary"]["class_counts"]["ALL"] == 82
         assert len(data["tree"]) == 5  # Classes 1, 2, 3, 4, 5
 
         # RF-CAT-04: Account 110101 has movements, so it cannot become a parent
@@ -190,7 +190,7 @@ class TestAccountingApiEndpoints:
         good_sub = self.client.post(
             "/api/v1/accounts/",
             {
-                "code": "110103",
+                "code": "110105",
                 "name": "Caja chica recepción",
                 "parent": acc_1101.id,
                 "account_type": "ASSET",

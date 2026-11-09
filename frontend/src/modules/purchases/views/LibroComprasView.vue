@@ -300,8 +300,8 @@
               @change="fetchPurchaseBook"
             >
               <option value="">Destino: Vitrina &amp; Cabina</option>
-              <option value="VITRINA">Solo Vitrina (Reventa · 110501)</option>
-              <option value="CABINA">Solo Cabina (Servicio · 110502)</option>
+              <option value="VITRINA">Solo Vitrina (Reventa · 110401)</option>
+              <option value="CABINA">Solo Cabina (Servicio · 110402)</option>
             </select>
           </div>
 
@@ -737,8 +737,8 @@
               required
               @change="syncProductForDestination"
             >
-              <option value="VITRINA">Vitrina · Reventa Comercial (Cuenta 110501)</option>
-              <option value="CABINA">Cabina · Insumo de Servicio (Cuenta 110502)</option>
+              <option value="VITRINA">Vitrina · Reventa Comercial (Cuenta 110401)</option>
+              <option value="CABINA">Cabina · Insumo de Servicio (Cuenta 110402)</option>
             </select>
           </div>
           <div class="ds-field">

@@ -13,14 +13,14 @@ TWOPLACES = Decimal("0.01")
 
 KEY_SIMULTANEOUS_CODES = [
     "110101",  # Caja general
-    "110102",  # Bancos
-    "110501",  # Mercadería vitrina
-    "110502",  # Insumos cabina
-    "110601",  # IVA crédito fiscal
-    "2107",    # IVA débito fiscal
-    "210101",  # Proveedores locales
-    "5101",    # Ingresos servicios
-    "5102",    # Ingresos productos
+    "110103",  # Bancos cuenta corriente
+    "110401",  # Mercadería vitrina
+    "110402",  # Insumos cabina
+    "110301",  # IVA crédito fiscal por compras
+    "210201",  # IVA débito fiscal por ventas
+    "210101",  # Proveedores
+    "510101",  # Servicios peluquería y estilismo
+    "510201",  # Venta de productos cosméticos
 ]
 
 

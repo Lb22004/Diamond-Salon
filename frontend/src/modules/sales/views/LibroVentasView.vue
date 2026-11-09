@@ -549,7 +549,7 @@
             <line x1="12" y1="8" x2="12.01" y2="8" />
           </svg>
           <span>
-            Cada venta separa automáticamente la base gravada y el IVA débito fiscal del 13%. El motor contable distingue si corresponde a prestación de servicio (Cabina → Cuenta 5101) o venta de producto (Vitrina → Cuenta 5102) para dirigir el asiento a la cuenta de ingreso y control de inventario correcta.
+            Cada venta separa automáticamente la base gravada y el IVA débito fiscal del 13%. El motor contable distingue si corresponde a prestación de servicio (Cabina → Cuenta 510101) o venta de producto (Vitrina → Cuenta 510201) para dirigir el asiento a la cuenta de ingreso y control de inventario correcta.
           </span>
         </div>
         <div class="ds-audit-ok-tag">
@@ -652,9 +652,9 @@
             <label class="form-label">Método de Cobro</label>
             <select v-model="saleForm.payment_method" class="form-select">
               <option value="CASH">Efectivo (110101 Caja general)</option>
-              <option value="CARD">Tarjeta POS (110102 Bancos)</option>
-              <option value="TRANSFER">Transferencia (110102 Bancos)</option>
-              <option value="CREDIT">Crédito Cliente (110301 Clientes)</option>
+              <option value="CARD">Tarjeta POS (110103 Bancos)</option>
+              <option value="TRANSFER">Transferencia (110103 Bancos)</option>
+              <option value="CREDIT">Crédito Cliente (110201 Clientes)</option>
             </select>
           </div>
         </div>
@@ -787,8 +787,8 @@
           <div>
             <div class="eyebrow">ASIENTO CONTABLE AUTOMÁTICO (RN-11)</div>
             <div class="text-muted" style="font-size: 12.5px; margin-top: 2px">
-              Cargo a <strong>{{ paymentAccountLabel }}</strong> · Abono a <strong>5101/5102 Ingresos</strong> y <strong>2107 IVA Débito (13%)</strong>
-              <span v-if="hasProductLines"> + Costo de Venta (<strong>410101 vs 110501</strong>)</span>
+              Cargo a <strong>{{ paymentAccountLabel }}</strong> · Abono a <strong>510101/510201 Ingresos</strong> y <strong>210201 IVA Débito (13%)</strong>
+              <span v-if="hasProductLines"> + Costo de Venta (<strong>410101 vs 110401</strong>)</span>
             </div>
           </div>
 
@@ -934,7 +934,7 @@
     <!-- ==================== MODAL: CATÁLOGO DE SERVICIOS (RF-VEN-13) ==================== -->
     <FormModal
       v-model="showServicesModal"
-      title="Catálogo de Servicios de Belleza (Cabina · Cuenta 5101)"
+      title="Catálogo de Servicios de Belleza (Cabina · Subcuenta 510101..510103)"
       subtitle="Precios oficiales con IVA incluido (13%) para facturación rápida."
       size="lg"
     >
@@ -973,7 +973,7 @@
               <td class="mono" style="font-weight: 700">{{ s.code }}</td>
               <td style="font-weight: 600">{{ s.name }}</td>
               <td><Badge variant="neutral">{{ s.category_label }}</Badge></td>
-              <td class="mono">{{ s.income_account_code || '5101' }}</td>
+              <td class="mono">{{ s.income_account_code || '510101' }}</td>
               <td class="text-right mono" style="font-weight: 700">{{ formatMoney(s.price) }}</td>
             </tr>
           </tbody>
@@ -1179,8 +1179,8 @@ const availableCcfSales = computed(() =>
 const paymentAccountLabel = computed(() => {
   const m = saleForm.value.payment_method
   if (m === 'CASH') return '110101 Caja general'
-  if (m === 'CARD' || m === 'TRANSFER') return '110102 Bancos'
-  return '110301 Clientes (CxC)'
+  if (m === 'CARD' || m === 'TRANSFER') return '110103 Bancos cuenta corriente'
+  return '110201 Clientes (CxC)'
 })
 
 const hasProductLines = computed(() =>

@@ -671,14 +671,14 @@ const financialStatements = ref({
 
 const quickAccountChips = [
   { code: '110101', label: 'Caja general' },
-  { code: '110102', label: 'Bancos' },
-  { code: '110501', label: 'Mercadería Vitrina' },
-  { code: '110502', label: 'Insumos Cabina' },
-  { code: '110601', label: 'IVA Crédito' },
-  { code: '2107', label: 'IVA Débito' },
+  { code: '110103', label: 'Bancos Cta Cte' },
+  { code: '110401', label: 'Mercadería Vitrina' },
+  { code: '110402', label: 'Insumos Cabina' },
+  { code: '110301', label: 'IVA Crédito' },
+  { code: '210201', label: 'IVA Débito' },
   { code: '210101', label: 'Proveedores' },
-  { code: '5101', label: 'Ingresos Servicios' },
-  { code: '5102', label: 'Ingresos Productos' },
+  { code: '510101', label: 'Servicios Peluquería' },
+  { code: '510201', label: 'Venta Cosméticos' },
 ]
 
 const exportBookKey = computed(() => {

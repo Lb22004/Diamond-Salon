@@ -71,7 +71,7 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if not attrs.get("income_account") and not (self.instance and self.instance.income_account_id):
-            acc_5101 = Account.objects.filter(code="5101").first()
+            acc_5101 = Account.objects.filter(code="510101").first() or Account.objects.filter(code="5101").first()
             if acc_5101:
                 attrs["income_account"] = acc_5101
         return attrs

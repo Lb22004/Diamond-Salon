@@ -281,7 +281,7 @@
                 @input="fetchSummary"
               />
             </div>
-            <span class="ds-inv-panel__account-tag">CUENTA CONTABLE: 1105-01</span>
+            <span class="ds-inv-panel__account-tag">CUENTA CONTABLE: 1104-01</span>
           </div>
 
           <!-- Vitrina Table -->
@@ -404,7 +404,7 @@
                 @input="fetchSummary"
               />
             </div>
-            <span class="ds-inv-panel__account-tag">CUENTA CONTABLE: 1105-02</span>
+            <span class="ds-inv-panel__account-tag">CUENTA CONTABLE: 1104-02</span>
           </div>
 
           <!-- Cabina Table -->
@@ -508,7 +508,7 @@
     <ModalDialog
       v-model="showProductModal"
       title="Registrar nuevo artículo en Inventario Mixto"
-      subtitle="Asigna automáticamente la cuenta contable según el régimen: Vitrina (110501) o Cabina (110502)."
+      subtitle="Asigna automáticamente la cuenta contable según el régimen: Vitrina (110401) o Cabina (110402)."
       size="md"
     >
       <form class="flex-col gap-md" @submit.prevent="submitNewProduct">
@@ -516,8 +516,8 @@
           <div class="ds-field">
             <label class="ds-field__label">Régimen Contable (RN-07) *</label>
             <select v-model="productForm.inventory_type" class="ds-input" required>
-              <option value="VITRINA">Vitrina · Para la venta (Cuenta 110501)</option>
-              <option value="CABINA">Cabina · Insumo de servicio (Cuenta 110502)</option>
+              <option value="VITRINA">Vitrina · Para la venta (Cuenta 110401)</option>
+              <option value="CABINA">Cabina · Insumo de servicio (Cuenta 110402)</option>
             </select>
           </div>
           <div class="ds-field">
@@ -679,7 +679,7 @@
     <ModalDialog
       v-model="showConsumptionModal"
       title="Registrar Consumo Técnico en Cabina"
-      subtitle="Descarga existencias de estación y contabiliza Debe 410201 Costo de insumos / Haber 110502 Cabina."
+      subtitle="Descarga existencias de estación y contabiliza Debe 410201 Costo de insumos / Haber 110402 Cabina."
       size="md"
     >
       <form class="flex-col gap-md" @submit.prevent="submitConsumption">

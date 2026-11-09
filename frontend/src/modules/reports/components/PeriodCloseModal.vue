@@ -64,7 +64,7 @@
           <div>
             <div class="eyebrow">LIQUIDACIÓN MENSUAL DE IVA (RF-CIE-03)</div>
             <div style="font-weight: 600; font-size: 14px">
-              Compensación automática 2107 IVA Débito vs. 110601 IVA Crédito
+              Compensación automática 210201 IVA Débito vs. 110301 IVA Crédito
             </div>
           </div>
           <label v-if="!isClosed && preview.iva_liquidation.requires_entry" class="flex-row gap-xs" style="font-size: 12.5px; cursor: pointer">
@@ -75,15 +75,15 @@
 
         <div class="grid-4 mb-sm" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px">
           <div class="card p-sm">
-            <div class="text-muted" style="font-size: 11px">2107 IVA Débito</div>
+            <div class="text-muted" style="font-size: 11px">210201 IVA Débito</div>
             <div style="font-weight: 700; font-size: 14px">{{ formatMoney(preview.iva_liquidation.iva_debit) }}</div>
           </div>
           <div class="card p-sm">
-            <div class="text-muted" style="font-size: 11px">110601 IVA Crédito</div>
+            <div class="text-muted" style="font-size: 11px">110301 IVA Crédito</div>
             <div style="font-weight: 700; font-size: 14px">{{ formatMoney(preview.iva_liquidation.iva_credit) }}</div>
           </div>
           <div class="card p-sm">
-            <div class="text-muted" style="font-size: 11px">2108 IVA por Pagar</div>
+            <div class="text-muted" style="font-size: 11px">210301 IVA por Pagar</div>
             <div style="font-weight: 700; font-size: 14px; color: var(--color-warning)">
               {{ formatMoney(preview.iva_liquidation.iva_payable) }}
             </div>

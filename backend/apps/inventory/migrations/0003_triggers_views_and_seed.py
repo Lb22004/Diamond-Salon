@@ -7,6 +7,13 @@ from django.db import migrations
 PG_APPEND_ONLY_TRIGGER_SQL = """
 CREATE OR REPLACE FUNCTION fn_append_only() RETURNS trigger AS $$
 BEGIN
+    IF TG_OP = 'UPDATE' AND OLD.journal_entry_id IS NULL AND NEW.journal_entry_id IS NOT NULL AND
+       OLD.id = NEW.id AND OLD.product_id = NEW.product_id AND OLD.location_id = NEW.location_id AND
+       OLD.movement_date = NEW.movement_date AND OLD.movement_type = NEW.movement_type AND
+       OLD.direction = NEW.direction AND OLD.quantity = NEW.quantity AND
+       OLD.unit_cost = NEW.unit_cost AND OLD.total_cost = NEW.total_cost THEN
+        RETURN NEW;
+    END IF;
     RAISE EXCEPTION '% is append-only', TG_TABLE_NAME;
 END;
 $$ LANGUAGE plpgsql;
@@ -81,8 +88,8 @@ def seed_inventory_and_purchases(apps, schema_editor):
     PurchaseLine = apps.get_model("purchases", "PurchaseLine")
     SupplierPayment = apps.get_model("purchases", "SupplierPayment")
 
-    acc_vitrina = Account.objects.filter(code="110501").first()
-    acc_cabina = Account.objects.filter(code="110502").first()
+    acc_vitrina = Account.objects.filter(code="110401").first()
+    acc_cabina = Account.objects.filter(code="110402").first()
     acc_caja = Account.objects.filter(code="110101").first()
     nov_period = AccountingPeriod.objects.filter(year=2026, month=11).first()
     creator = User.objects.filter(username="contador").first() or User.objects.order_by("id").first()
