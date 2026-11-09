@@ -18,7 +18,8 @@ const FALLBACK_PERIOD = {
 
 export const usePeriodStore = defineStore('period', () => {
   const periods = ref([])
-  const selectedPeriodId = ref(Number(localStorage.getItem('selected_period_id')) || null)
+  const selectedPeriodId = ref(null)
+  const userManuallySelected = ref(false)
   const loading = ref(false)
 
   const activePeriod = computed(() => {
@@ -42,8 +43,11 @@ export const usePeriodStore = defineStore('period', () => {
       const { data } = await http.get('/v1/periods/')
       const list = Array.isArray(data) ? data : data.results || []
       periods.value = list
-      if (!selectedPeriodId.value || !list.some((p) => p.id === selectedPeriodId.value)) {
-        const defaultActive = list.find((p) => p.is_active) || list.find((p) => p.year === 2026 && p.month === 11) || list[0]
+      if (!userManuallySelected.value || !selectedPeriodId.value || !list.some((p) => p.id === selectedPeriodId.value)) {
+        const defaultActive =
+          list.find((p) => p.is_active) ||
+          list.find((p) => p.year === 2026 && p.month === 11) ||
+          list[0]
         if (defaultActive) {
           selectedPeriodId.value = defaultActive.id
           localStorage.setItem('selected_period_id', String(defaultActive.id))
@@ -62,6 +66,7 @@ export const usePeriodStore = defineStore('period', () => {
 
   function selectPeriod(periodId) {
     const idNum = Number(periodId)
+    userManuallySelected.value = true
     selectedPeriodId.value = idNum
     localStorage.setItem('selected_period_id', String(idNum))
   }

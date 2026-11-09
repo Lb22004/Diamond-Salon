@@ -58,18 +58,19 @@ def seed_core_data(apps, schema_editor):
     ]
     default_pw = make_password("diamond2026")
     for username, first_name, last_name, email, role, is_staff, is_superuser in demo_users:
-        if not User.objects.filter(username=username).exists():
-            User.objects.create(
-                username=username,
-                password=default_pw,
-                first_name=first_name,
-                last_name=last_name,
-                email=email,
-                role=role,
-                is_staff=is_staff,
-                is_superuser=is_superuser,
-                is_active=True,
-            )
+        User.objects.update_or_create(
+            username=username,
+            defaults={
+                "password": default_pw,
+                "first_name": first_name,
+                "last_name": last_name,
+                "email": email,
+                "role": role,
+                "is_staff": is_staff,
+                "is_superuser": is_superuser,
+                "is_active": True,
+            },
+        )
 
     # 3. Fiscal year 2026 & 12 monthly accounting periods (seed.sql)
     fy_2026, _ = FiscalYear.objects.update_or_create(

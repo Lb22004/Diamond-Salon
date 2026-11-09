@@ -255,12 +255,12 @@ def _build_book_dataset(
             with connection.cursor() as cursor:
                 cursor.execute(
                     f"""
-                    SELECT s.issue_date, s.doc_type, s.doc_number, c.name, COALESCE(c.nrc, '—'),
-                           s.subtotal, s.iva_amount, s.total
+                    SELECT s.sale_date, s.doc_type, s.doc_number, c.name, COALESCE(c.nrc, '—'),
+                           s.taxable_amount, s.iva_amount, s.total
                     FROM sales_sale s
                     JOIN sales_customer c ON c.id = s.customer_id
                     WHERE s.period_id = %s AND s.status = 'ISSUED'{doc_filter}
-                    ORDER BY s.issue_date, s.id
+                    ORDER BY s.sale_date, s.id
                     """,
                     [resolved_period.pk],
                 )

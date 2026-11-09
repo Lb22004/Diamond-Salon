@@ -14,6 +14,8 @@ urlpatterns = [
     path("api/v1/accounting/", include("apps.accounting.urls")),
     path("api/v1/", include("apps.reports.urls")),
     path("api/v1/reports/", include("apps.reports.urls")),
+    path("api/v1/", include("apps.sales.urls")),
+    path("api/v1/sales/", include("apps.sales.urls")),
     # Each owner registers their module here, e.g.:
     # path("api/v1/accounting/", include("apps.accounting.urls")),
 ]

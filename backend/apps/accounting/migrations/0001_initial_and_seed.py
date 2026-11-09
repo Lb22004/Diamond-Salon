@@ -168,7 +168,7 @@ SEED_MAPPINGS = [
 
 def seed_accounting_data(apps, schema_editor):
     if schema_editor.connection.vendor == "postgresql":
-        schema_editor.execute(PG_TRIGGERS_SQL)
+        schema_editor.execute(PG_TRIGGERS_SQL, params=None)
 
     Account = apps.get_model("accounting", "Account")
     AccountMapping = apps.get_model("accounting", "AccountMapping")

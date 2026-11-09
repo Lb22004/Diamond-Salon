@@ -341,7 +341,7 @@ class DashboardSummaryView(APIView):
                         """
                         SELECT
                             l.line_type,
-                            COALESCE(SUM(l.line_total), 0),
+                            COALESCE(SUM(l.total), 0),
                             COUNT(DISTINCT s.id)
                         FROM sales_sale_line l
                         JOIN sales_sale s ON s.id = l.sale_id

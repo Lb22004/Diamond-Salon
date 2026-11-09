@@ -268,3 +268,85 @@ Mounted under `/api/v1/` and `/api/v1/reports/`:
   - Verified `get_close_preview` blocks closing when a `DRAFT` entry exists and turns green once resolved.
   - Verified `close_period` posts the `CLOSING` IVA liquidation entry, snapshots `PeriodBalance` rows (`110101` = `$1,785.30`, `2107` = `$0.00`), locks the period (`CLOSED`), and blocks subsequent postings (`ClosedPeriodError`).
   - Verified `/api/v1/exports/ledger/?format=pdf` and `/api/v1/exports/trial-balance/?format=xlsx` binary headers (`%PDF` and `PK`) and `EXPORT` audit logs (`18 passed` across all backend suites).
+
+
+---
+
+## [2026-11-09] Person 4 (P4 · Ventas, Servicios, Clientes & Facturación Fiscal — Vista 3: Libro de Ventas)
+
+**Owner:** Person 4 (P4 — Sales, Services & Tax Billing Lead)  
+**Scope:** Complete full-stack implementation of P4 deliverables across Sprints 0, 1, 2, and 3 per [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md), [docs/SRS.md](docs/SRS.md), and [docs/database/DB_DESIGN.md](docs/database/DB_DESIGN.md).
+
+---
+
+### 1. Backend Changes (`backend/apps/sales/` & `backend/config/urls.py`)
+
+#### 1.1 Database Models & Constraints (`backend/apps/sales/models.py`)
+Implemented all 5 `sales_*` tables matching `docs/database/schema.sql`:
+- **`Customer` (`sales_customer`)**:
+  - Supports `FINAL_CONSUMER` (`Consumidor final`) and `TAXPAYER` (`Contribuyente IVA`) with `document_type`, `document_number`, `nrc`, `economic_activity`, `is_large_taxpayer` (1% IVA retention trigger), and `is_generic`.
+  - Enforces `ck_sales_customer_taxpayer_ids` (`customer_type <> 'TAXPAYER' OR (nrc IS NOT NULL AND document_number IS NOT NULL)`) and partial unique constraint `ux_customer_document` (`RF-VEN-04`).
+- **`Service` (`sales_service`) & `ServiceSupply` (`sales_service_supply`)**:
+  - Salon beauty service catalog (`code` unique, `name`, `category`, `price` incl. 13% IVA, `income_account` FK to `5101`) and optional Cabina supply recipes (`RF-INV-10`, `RF-VEN-13`).
+- **`DocumentSeries` (`sales_document_series`)**:
+  - Authorized fiscal correlative series (`doc_type` ∈ `FCF`/`CCF`/`NC`/`ND`, `prefix`, `resolution`, `authorized_from`, `authorized_to`, `next_number`, `valid_from`, `is_active`) with partial unique index `ux_series_active` (`RF-VEN-02`, `RN-09`).
+- **`Sale` (`sales_sale`) & `SaleLine` (`sales_sale_line`)**:
+  - Header (`series`, `doc_type`, `doc_number`, `sale_date`, `period`, `customer`, `employee`, `payment_method` ∈ `CASH`/`CARD`/`TRANSFER`/`CREDIT`, `taxable_amount`, `exempt_amount`, `non_subject_amount`, `iva_amount`, `iva_withheld`, `total`, `status` ∈ `ISSUED`/`VOIDED`, `void_reason`, `voided_at`, `related_sale`, `journal_entry`, `notes`, `created_by`).
+  - Line items (`line_no`, `line_type` ∈ `SERVICE`/`PRODUCT` with `regime_badge` `CABINA`/`VITRINA`, `service`, `product_id`, `description`, `quantity`, `unit_price`, `discount`, `taxable_amount`, `iva_amount`, `total`, `unit_cost`).
+
+#### 1.2 Migration & Initial Seed (`backend/apps/sales/migrations/0001_initial_and_seed.py`)
+- Created all `sales_*` tables, indexes, and constraints.
+- Seeded generic `Consumidor final` customer, named final consumers (`Ana Mejía`, `Rosa Flores`), and 2 taxpayer customers (`Eventos Glamour, S.A. de C.V.` and `Corporación Hotelera Real, S.A. de C.V.` as Gran Contribuyente).
+- Seeded authorized `DocumentSeries` for `FCF` (`FCF-0016` next), `CCF` (`CCF-0001` next), `NC`, and `ND`.
+- Seeded 5 salon beauty services (`SRV-001` to `SRV-005`) linked to account `5101`.
+- Seeded the 4 November 2026 sales from the visual specification (`FCF-0012` `Ana Mejía` `$25.00` Cabina, `FCF-0013` `Consumidor final` `$12.00` Vitrina, `FCF-0014` `Rosa Flores` `$15.00` Cabina, `FCF-0015` `Consumidor final` `$18.00` Vitrina → `$70.00` gross, `$61.94` taxable, `$8.06` IVA) with their corresponding posted `JournalEntry` rows.
+- Also updated `backend/apps/accounting/migrations/0001_initial_and_seed.py` (`params=None` in `schema_editor.execute(PG_TRIGGERS_SQL, params=None)`) so `psycopg` v3 in PostgreSQL 17 does not treat `%` inside `RAISE EXCEPTION` PL/pgSQL strings as placeholders.
+
+#### 1.3 Tax & Sales Services (`backend/apps/sales/services/tax.py`, `backend/apps/sales/services/sales.py`)
+- **`split_iva(amount, *, price_includes_iva, rate)` (`DB_DESIGN.md §6`, `RN-06`, `RF-VEN-03`)**:
+  - Exact `ROUND_HALF_UP` IVA breakdown for `FCF` (`price_includes_iva=True`: `taxable = round(amount / 1.13, 2)`, `iva = amount - taxable`) and `CCF` (`price_includes_iva=False`: `iva = round(taxable * 0.13, 2)`).
+- **`compute_iva_withholding(taxable_amount, *, is_large_taxpayer, doc_type)` (`RF-VEN-03`)**:
+  - Calculates 1% IVA withholding on `CCF`/`NC`/`ND` issued to large taxpayers.
+- **`create_sale(...)` (`RF-VEN-01..05`, `RF-VEN-11`, `RN-09`, `RN-11`)**:
+  - Validates open period (`get_open_period`), enforces `TAXPAYER` with `NRC` and `NIT/DUI` on `CCF`/`NC`/`ND`, locks `DocumentSeries` with `select_for_update()` to assign gapless correlative numbers, computes line and document totals, hooks into `StockService.register_movement()` when `apps.inventory` is present, and posts the balanced `JournalEntry` (`110101`/`110102`/`110301` + `110602` vs `5101`/`5102` + `2107`, plus Cost of Sales `410101` vs `110501` for Vitrina products) in a single atomic transaction.
+- **`void_sale(sale, *, reason, user)` (`RF-VEN-10`)**:
+  - Validates open period, reverses the sale's `JournalEntry` via `PostingService.reverse_entry()`, marks the sale `VOIDED`, and records `AuditLog.Action.VOID`.
+- **`get_sales_book(...)` (`RF-VEN-06..09`, `RF-VEN-12`, `OI-6`, `OI-7`)**:
+  - Computes the 4 KPI cards, the dual **Cabina (`5101`) vs. Vitrina (`5102`)** regime breakdown cards, the interactive sales list, the daily consolidated **Libro Legal Consumidor Final (FCF)**, and the detailed **Libro Legal Contribuyentes (CCF)**.
+
+#### 1.4 REST API Endpoints (`backend/apps/sales/serializers.py`, `views.py`, `urls.py`, `admin.py`)
+Mounted under `/api/v1/` and `/api/v1/sales/`:
+- `GET/POST/PATCH/DELETE /api/v1/customers/`
+- `GET/POST/PATCH/DELETE /api/v1/services/`
+- `GET/POST/PATCH /api/v1/document-series/`
+- `GET/POST /api/v1/sales/` & `POST /api/v1/sales/<pk>/void/`
+- `GET /api/v1/sales-book/`
+
+---
+
+### 2. Frontend Changes (`frontend/src/modules/sales/views/LibroVentasView.vue`, `frontend/src/styles/main.css`)
+
+- **Vista 3 · Libro de Ventas (`LibroVentasView.vue`) — Aligned with Atelier Mock-up**:
+  - **Top Amber Ribbon Banner (`.ds-vista-ribbon`)**: `🛡 VISTA 3 · LIBRO DE VENTAS · EJERCICIO FISCAL 2026` | `● RESPONSABLE: VÍCTOR FLORES | RÉGIMEN GENERAL IVA (13%)`.
+  - **Editorial Header**: `SUBDIARIO FISCAL` pill + `Periodo contable 01/11 – 30/11`, serif `Libro de ventas` heading, `Descargar reporte mensual` (`ExportButton`), and wine `+ Registrar venta` CTA button.
+  - **4 KPI Cards (`.ds-sales-kpi-grid`, `RF-VEN-08`, `OI-6`)**:
+    1. `VENTAS BRUTAS TOTALES`: `$70.00` + gold pill `100% Total`
+    2. `BASE IMPONIBLE GRAVADA`: `$61.94` + neutral pill `88.49%`
+    3. `IVA DÉBITO FISCAL (13%)`: `$8.06` (wine text) + pink pill `Crédito por liquidar`
+    4. `COMPROBANTES EMITIDOS`: `4 FCF` + gold pill `Secuencia Activa` (`FCF-0012 a FCF-0015`)
+  - **Main White Card (`.ds-sales-main-card`)**:
+    - Toolbar with `📅 RANGO: 01/11/26 - 05/11/26 ▾` toggle, segmented tabs (`Todos (4)`, `Servicio (2)`, `Venta de producto (2)`, `Libro FCF`, `Libro CCF`), `● Estado: Registrado y Mayorizado`, compact search `🔍 Filtrar por cliente o factura...`, and print button `🖨`.
+    - Dark-header table (`.ds-dark-table`) with `FECHA` (`dd/mm/yy`), `DOCUMENTO` pill (`FCF-0012`), `CLIENTE` (bold or italic `Consumidor final`), `CONCEPTO` (`CABINA` gold tag / `VITRINA` pink tag + text), `GRAVADO ($)`, `IVA ($)` in wine, `TOTAL ($)` bold, and `✓✓ Totales del periodo (Sumas iguales comprobadas)` footer (`61.94 | 8.06 | 70.00`).
+    - Explanatory Audit Note Bar (`.ds-audit-note-bar`) with `AUDITORÍA OK ●`.
+  - **Bottom 2 Regime Summary Cards (`.ds-bottom-regime-grid`, `RF-VEN-09`)**:
+    - `SERVICIOS EN SALÓN (CABINA)`: `$40.00 (57.1% del total)` · `2 registros · Corte & peinado, Manicura`.
+    - `VENTA RETAIL DIRECTA (VITRINA)`: `$30.00 (42.9% del total)` · `2 registros · Champú nutritivo, Sérum de brillo`.
+  - **Interactive Modals**: `+ Registrar Venta`, `Directorio de Clientes`, `Catálogo de Servicios`, `Detalle de Venta`, and `Anular Documento`.
+
+---
+
+### 3. Tests & Verification
+- **`backend/apps/sales/tests/test_sales.py`**:
+  - Verified `split_iva()` for `FCF` (`$25.00` → `$22.12 + $2.88`; `$12.00` → `$10.62 + $1.38`), `CCF` (`$100.00` → `$100.00 + $13.00`), and 1% large-taxpayer withholding (`$1.00`).
+  - Verified seeded Nov 2026 sales book (`gross_sales = 70.00`, `taxable_base = 61.94`, `iva_debit = 8.06`, `cabina = 40.00`, `vitrina = 30.00`).
+  - Verified `CCF` rejection for Final Consumer (`RF-VEN-04`), automatic double-entry + cost of sales posting (`110101`, `5101`, `5102`, `2107`, `410101`, `110501`), and `void_sale()` reversal (`22 passed` across all backend test suites).

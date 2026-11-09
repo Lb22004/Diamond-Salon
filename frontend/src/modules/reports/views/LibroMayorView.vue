@@ -146,26 +146,34 @@
       <!-- 4 KPI Cards (RF-MAY-04) -->
       <div class="kpi-grid">
         <KpiCard
-          eyebrow="APERTURA / BASE INICIAL"
-          :value="formatMoney(ledgerData.kpis?.effective_initial_balance || '0.00')"
-          :sublabel="`Saldo anterior al corte: ${formatMoney(ledgerData.kpis?.opening_balance || '0.00')}`"
+          title="APERTURA / BASE INICIAL"
+          :value="ledgerData.kpis?.effective_initial_balance || '0.00'"
+          :subtitle="`Saldo anterior al corte: ${formatMoney(ledgerData.kpis?.opening_balance || '0.00')}`"
+          badge="Base Inicial"
+          badge-variant="neutral"
         />
         <KpiCard
-          eyebrow="TOTAL CARGOS (DEBE)"
-          :value="formatMoney(ledgerData.kpis?.debit_total || '0.00')"
-          :sublabel="`${ledgerData.kpis?.debit_count || 0} cargo(s) mayorizados en el período`"
-          trend="up"
+          title="TOTAL CARGOS (DEBE)"
+          :value="ledgerData.kpis?.debit_total || '0.00'"
+          :subtitle="`${ledgerData.kpis?.debit_count || 0} cargo(s) mayorizados en el período`"
+          badge="Cargos"
+          badge-variant="gold"
+          tone="gold"
         />
         <KpiCard
-          eyebrow="TOTAL ABONOS (HABER)"
-          :value="formatMoney(ledgerData.kpis?.credit_total || '0.00')"
-          :sublabel="`${ledgerData.kpis?.credit_count || 0} abono(s) mayorizados en el período`"
+          title="TOTAL ABONOS (HABER)"
+          :value="ledgerData.kpis?.credit_total || '0.00'"
+          :subtitle="`${ledgerData.kpis?.credit_count || 0} abono(s) mayorizados en el período`"
+          badge="Abonos"
+          badge-variant="wine"
         />
         <KpiCard
-          eyebrow="SALDO DE CIERRE ACTUAL"
-          :value="formatMoney(ledgerData.kpis?.closing_balance || '0.00')"
-          :sublabel="`Variación neta: ${ledgerData.kpis?.variation_pct || '+0.00%'}`"
-          variant="dark"
+          title="SALDO DE CIERRE ACTUAL"
+          :value="ledgerData.kpis?.closing_balance || '0.00'"
+          :subtitle="`Variación neta: ${ledgerData.kpis?.variation_pct || '+0.00%'}`"
+          :badge="ledgerData.kpis?.variation_pct || '+0.00%'"
+          badge-variant="gold"
+          tone="ink"
         />
       </div>
 

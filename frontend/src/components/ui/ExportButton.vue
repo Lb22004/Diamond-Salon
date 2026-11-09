@@ -52,19 +52,48 @@ async function triggerExport(format) {
   <div class="ds-export-dropdown">
     <button
       type="button"
-      class="ds-btn ds-btn--outline"
+      class="ds-btn ds-btn--outline ds-export-dropdown__trigger"
       :disabled="Boolean(loadingFormat)"
       @click="open = !open"
     >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+      </svg>
       <span v-if="loadingFormat">Generando {{ loadingFormat.toUpperCase() }}…</span>
-      <span v-else>⇩ {{ label }} ▾</span>
+      <span v-else>{{ label }}</span>
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+        style="opacity: 0.65"
+      >
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
     </button>
     <div v-if="open" class="ds-export-dropdown__menu">
       <button type="button" class="ds-export-dropdown__item" @click="triggerExport('pdf')">
-        Exportar PDF (Legal)
+        <span>Documento PDF (Formato Legal)</span>
       </button>
       <button type="button" class="ds-export-dropdown__item" @click="triggerExport('xlsx')">
-        Exportar Excel (.xlsx)
+        <span>Hoja de Cálculo Excel (.xlsx)</span>
       </button>
     </div>
   </div>
