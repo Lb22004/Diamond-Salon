@@ -369,7 +369,7 @@ def _build_book_dataset(
                         str(r[3]),
                         f"{qty:.2f}",
                         f"{avg:.2f}",
-                        f"{pvp:.2f}" if pvp is not None else "—",
+                        pvp,
                         f"{val:.2f}",
                     ])
         return {
@@ -449,7 +449,10 @@ def _render_pdf(company: Company | None, dataset: dict) -> bytes:
         formatted_row = []
         for idx, val in enumerate(row):
             if idx in money_cols:
-                formatted_row.append(_fmt_money(val))
+                if val is None:
+                    formatted_row.append("\u2014")
+                else:
+                    formatted_row.append(_fmt_money(val))
             else:
                 text = str(val or "")
                 if len(text) > 58:

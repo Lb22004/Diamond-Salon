@@ -137,3 +137,21 @@ class TestReportsAndExportsAPI:
         assert res_xlsx.content.startswith(b"PK")
 
         assert AuditLog.objects.filter(action=AuditLog.Action.EXPORT).count() >= 2
+
+    def test_inventory_exports_with_null_sale_price(self):
+        client = APIClient()
+        contador = User.objects.get(username="contador")
+        client.force_authenticate(user=contador)
+
+        res_pdf = client.get("/api/v1/exports/inventory/?format=pdf")
+        assert res_pdf.status_code == 200
+        assert res_pdf["Content-Type"] == "application/pdf"
+        assert res_pdf.content.startswith(b"%PDF")
+
+        res_xlsx = client.get("/api/v1/exports/inventory/?format=xlsx")
+        assert res_xlsx.status_code == 200
+        assert (
+            res_xlsx["Content-Type"]
+            == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        assert res_xlsx.content.startswith(b"PK")
