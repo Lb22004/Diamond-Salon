@@ -1,8 +1,12 @@
 import axios from 'axios'
 
-// Single HTTP client for every module (owner: P1). Requests go through the
-// Vite proxy (/api -> backend), so no CORS issues in development.
-const http = axios.create({ baseURL: '/api', timeout: 15000 })
+// API URL configurable for local development and production.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+
+const http = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 15000,
+})
 
 http.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token')
@@ -54,7 +58,7 @@ http.interceptors.response.use(
       originalRequest._retry = true
       isRefreshing = true
       try {
-        const { data } = await axios.post('/api/auth/token/refresh/', {
+        const { data } = await http.post('/auth/token/refresh/', {
           refresh: refreshToken,
         })
         const newAccess = data.access

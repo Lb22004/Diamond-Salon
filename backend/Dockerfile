@@ -14,5 +14,5 @@ COPY . .
 
 EXPOSE 8000
 
-# Apply migrations, then start the dev server (code is bind-mounted for hot reload).
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"]
+# Apply migrations, collect static files, and start Gunicorn.
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"]
