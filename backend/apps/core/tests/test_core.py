@@ -10,9 +10,12 @@ from apps.core.models import AccountingPeriod, AuditLog, Company, FiscalYear, Pe
 from apps.core.services.periods import (
     activate_period,
     generate_fiscal_year_periods,
+    generate_periods,
     get_active_period,
     get_open_period,
+    period_usage,
     reopen_period,
+    set_period_hidden,
 )
 
 
@@ -164,3 +167,178 @@ class TestAuthRbacAndEndpoints:
         notif_resp = self.client.get("/api/v1/notifications/")
         assert notif_resp.status_code == 200
         assert notif_resp.json()["count"] >= 1
+
+
+@pytest.mark.django_db
+class TestFlexiblePeriodManagement:
+    """Partial / month-by-month generation, hide/show, and safe deletion of periods and years."""
+
+    def setup_method(self):
+        self.client = APIClient()
+        self.admin = User.objects.get(username="admin")
+        self.client.force_authenticate(user=self.admin)
+
+    # -- Generation -----------------------------------------------------------------------
+
+    def test_generate_full_year_is_backward_compatible(self):
+        resp = self.client.post("/api/v1/periods/generate-year/", {"year": 2027}, format="json")
+        assert resp.status_code == 201
+        assert resp.json()["created_count"] == 12
+        assert AccountingPeriod.objects.filter(year=2027).count() == 12
+
+    def test_generate_month_range_then_specific_months_is_idempotent(self):
+        resp = self.client.post(
+            "/api/v1/periods/generate-year/",
+            {"year": 2027, "mode": "RANGE", "start_month": 3, "end_month": 12},
+            format="json",
+        )
+        assert resp.status_code == 201
+        assert resp.json()["created_months"] == list(range(3, 13))
+        assert AccountingPeriod.objects.filter(year=2027).count() == 10
+
+        resp = self.client.post(
+            "/api/v1/periods/generate-year/",
+            {"year": 2027, "mode": "MONTHS", "months": [1, 2, 5]},
+            format="json",
+        )
+        assert resp.status_code == 201
+        assert resp.json()["created_months"] == [1, 2]
+        assert AccountingPeriod.objects.filter(year=2027).count() == 12
+
+    def test_generate_invalid_payloads(self):
+        bad = [
+            {"year": "abc"},
+            {"year": 2027, "mode": "MONTHS", "months": [13]},
+            {"year": 2027, "mode": "MONTHS", "months": []},
+            {"year": 2027, "mode": "RANGE", "start_month": 8, "end_month": 3},
+            {"year": 2027, "mode": "RANGE", "start_month": 3},
+        ]
+        for payload in bad:
+            resp = self.client.post("/api/v1/periods/generate-year/", payload, format="json")
+            assert resp.status_code == 400, payload
+        assert not AccountingPeriod.objects.filter(year=2027).exists()
+
+    def test_generate_next_rolls_over_into_new_fiscal_year(self):
+        resp = self.client.post("/api/v1/periods/generate-next/")
+        assert resp.status_code == 201
+        assert (resp.json()["year"], resp.json()["month"]) == (2027, 1)
+        assert FiscalYear.objects.filter(year=2027).exists()
+
+        resp = self.client.post("/api/v1/periods/generate-next/")
+        assert (resp.json()["year"], resp.json()["month"]) == (2027, 2)
+
+    def test_generation_requires_admin(self):
+        self.client.force_authenticate(user=User.objects.get(username="contador"))
+        assert self.client.post("/api/v1/periods/generate-year/", {"year": 2027}, format="json").status_code == 403
+        assert self.client.post("/api/v1/periods/generate-next/").status_code == 403
+
+    # -- Visibility -----------------------------------------------------------------------
+
+    def test_hide_and_show_period(self):
+        jan = AccountingPeriod.objects.get(year=2026, month=1)
+        assert self.client.post(f"/api/v1/periods/{jan.pk}/hide/").status_code == 200
+
+        visible_ids = {p["id"] for p in self.client.get("/api/v1/periods/").json()}
+        all_ids = {p["id"] for p in self.client.get("/api/v1/periods/?include_hidden=true").json()}
+        assert jan.pk not in visible_ids
+        assert jan.pk in all_ids
+
+        assert self.client.post(f"/api/v1/periods/{jan.pk}/show/").status_code == 200
+        assert jan.pk in {p["id"] for p in self.client.get("/api/v1/periods/").json()}
+
+    def test_active_period_cannot_be_hidden_and_activation_unhides(self):
+        nov = AccountingPeriod.objects.get(year=2026, month=11)
+        resp = self.client.post(f"/api/v1/periods/{nov.pk}/hide/")
+        assert resp.status_code == 400
+
+        dec = AccountingPeriod.objects.get(year=2026, month=12)
+        set_period_hidden(dec, True, user=self.admin)
+        activate_period(dec, user=self.admin)
+        dec.refresh_from_db()
+        assert dec.is_active and not dec.is_hidden
+
+    def test_hide_whole_fiscal_year_keeps_active_period_visible(self):
+        fy = FiscalYear.objects.get(year=2026)
+        resp = self.client.post(f"/api/v1/fiscal-years/{fy.pk}/hide/")
+        assert resp.status_code == 200
+        assert resp.json()["updated"] == 11
+        assert not AccountingPeriod.objects.get(year=2026, month=11).is_hidden
+
+    def test_cashier_cannot_hide(self):
+        self.client.force_authenticate(user=User.objects.get(username="cajero"))
+        jan = AccountingPeriod.objects.get(year=2026, month=1)
+        assert self.client.post(f"/api/v1/periods/{jan.pk}/hide/").status_code == 403
+
+    # -- Deletion -------------------------------------------------------------------------
+
+    def test_delete_empty_period_is_audited(self):
+        generate_periods(2027, [3, 4], user=self.admin)
+        mar = AccountingPeriod.objects.get(year=2027, month=3)
+        usage = self.client.get(f"/api/v1/periods/{mar.pk}/usage/").json()
+        assert usage["can_delete"] is True
+
+        resp = self.client.delete(f"/api/v1/periods/{mar.pk}/", {"reason": "Creado por error"}, format="json")
+        assert resp.status_code == 200
+        assert not AccountingPeriod.objects.filter(pk=mar.pk).exists()
+        log = AuditLog.objects.get(action="DELETE", table_name="core_accounting_period", record_id=mar.pk)
+        assert log.after_data["delete_reason"] == "Creado por error"
+
+    def test_delete_period_with_data_or_closed_is_blocked(self):
+        nov = AccountingPeriod.objects.get(year=2026, month=11)
+        assert any(period_usage(nov).values()), "Seed data expected in Noviembre 2026"
+        resp = self.client.delete(f"/api/v1/periods/{nov.pk}/")
+        assert resp.status_code == 400
+        assert "datos registrados" in resp.json()["detail"]
+
+        generate_periods(2027, [1], user=self.admin)
+        jan = AccountingPeriod.objects.get(year=2027, month=1)
+        jan.status = PeriodStatus.CLOSED
+        jan.closed_at = timezone.now()
+        jan.save()
+        assert self.client.delete(f"/api/v1/periods/{jan.pk}/").status_code == 400
+
+    def test_delete_period_requires_admin(self):
+        generate_periods(2027, [1], user=self.admin)
+        jan = AccountingPeriod.objects.get(year=2027, month=1)
+        self.client.force_authenticate(user=User.objects.get(username="contador"))
+        assert self.client.delete(f"/api/v1/periods/{jan.pk}/").status_code == 403
+
+    def test_delete_active_period_reassigns_active(self):
+        generate_periods(2027, [3, 4, 5], user=self.admin)
+        apr = AccountingPeriod.objects.get(year=2027, month=4)
+        activate_period(apr, user=self.admin)
+
+        resp = self.client.delete(f"/api/v1/periods/{apr.pk}/")
+        assert resp.status_code == 200
+        active = get_active_period()
+        assert active is not None and active.is_active
+        assert (active.year, active.month) in {(2027, 3), (2027, 5)}
+        assert AccountingPeriod.objects.filter(is_active=True).count() == 1
+
+    def test_deleting_last_month_removes_empty_fiscal_year(self):
+        generate_periods(2028, [6], user=self.admin)
+        jun = AccountingPeriod.objects.get(year=2028, month=6)
+        resp = self.client.delete(f"/api/v1/periods/{jun.pk}/")
+        assert resp.status_code == 200
+        assert resp.json()["fiscal_year_deleted"] is True
+        assert not FiscalYear.objects.filter(year=2028).exists()
+
+    def test_delete_fiscal_year(self):
+        generate_periods(2027, None, user=self.admin)
+        fy_2027 = FiscalYear.objects.get(year=2027)
+        listing = {fy["year"]: fy for fy in self.client.get("/api/v1/fiscal-years/").json()}
+        assert listing[2027]["can_delete"] is True
+        assert listing[2027]["periods_count"] == 12
+        assert listing[2026]["can_delete"] is False
+
+        resp = self.client.delete(f"/api/v1/fiscal-years/{fy_2027.pk}/")
+        assert resp.status_code == 200
+        assert resp.json()["deleted_periods"] == 12
+        assert not FiscalYear.objects.filter(year=2027).exists()
+        assert not AccountingPeriod.objects.filter(year=2027).exists()
+
+        fy_2026 = FiscalYear.objects.get(year=2026)
+        resp = self.client.delete(f"/api/v1/fiscal-years/{fy_2026.pk}/")
+        assert resp.status_code == 400
+        assert "Noviembre" in resp.json()["detail"]
+        assert AccountingPeriod.objects.filter(year=2026).count() == 12

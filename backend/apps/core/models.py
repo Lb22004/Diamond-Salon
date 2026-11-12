@@ -201,6 +201,10 @@ class AccountingPeriod(models.Model):
         default=False,
         help_text="Período de trabajo activo por defecto en la interfaz.",
     )
+    is_hidden = models.BooleanField(
+        default=False,
+        help_text="Oculto en el selector de períodos (sigue existiendo y es válido).",
+    )
     closed_at = models.DateTimeField(null=True, blank=True)
     closed_by = models.ForeignKey(
         User,
@@ -233,6 +237,10 @@ class AccountingPeriod(models.Model):
             models.CheckConstraint(
                 condition=Q(status="OPEN") | Q(closed_at__isnull=False),
                 name="ck_core_period_closed_at",
+            ),
+            models.CheckConstraint(
+                condition=~Q(is_active=True, is_hidden=True),
+                name="ck_core_period_active_not_hidden",
             ),
         ]
 

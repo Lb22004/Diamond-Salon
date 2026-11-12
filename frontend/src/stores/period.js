@@ -17,10 +17,32 @@ const FALLBACK_PERIOD = {
 }
 
 export const usePeriodStore = defineStore('period', () => {
-  const periods = ref([])
+  const periods = ref([]) // visible periods (header picker)
+  const allPeriods = ref([]) // includes hidden periods (settings management)
+  const fiscalYears = ref([])
+  const managementLoaded = ref(false)
   const selectedPeriodId = ref(null)
   const userManuallySelected = ref(false)
   const loading = ref(false)
+
+  /** Visible periods grouped by year: { 2026: [period, ...], ... } (months ascending). */
+  const periodsByYear = computed(() => {
+    const groups = {}
+    for (const p of periods.value) {
+      ;(groups[p.year] ||= []).push(p)
+    }
+    for (const year of Object.keys(groups)) {
+      groups[year].sort((a, b) => a.month - b.month)
+    }
+    return groups
+  })
+
+  /** Years with at least one visible period, newest first. */
+  const availableYears = computed(() =>
+    Object.keys(periodsByYear.value)
+      .map(Number)
+      .sort((a, b) => b - a)
+  )
 
   const activePeriod = computed(() => {
     if (selectedPeriodId.value) {
@@ -73,34 +95,116 @@ export const usePeriodStore = defineStore('period', () => {
 
   async function activateServerPeriod(periodId) {
     const { data } = await http.post(`/v1/periods/${periodId}/activate/`)
-    await fetchPeriods()
+    await refreshAll()
     selectPeriod(data.id)
     return data
   }
 
   async function reopenPeriod(periodId, reason) {
     const { data } = await http.post(`/v1/periods/${periodId}/reopen/`, { reason })
-    await fetchPeriods()
+    await refreshAll()
     return data
   }
 
   async function generateYear(year) {
-    const { data } = await http.post('/v1/periods/generate-year/', { year })
-    await fetchPeriods()
+    return generatePeriods({ year, mode: 'FULL' })
+  }
+
+  /**
+   * Generate periods for a fiscal year.
+   * payload: { year, mode: 'FULL' | 'RANGE' | 'MONTHS', start_month?, end_month?, months? }
+   */
+  async function generatePeriods(payload) {
+    const { data } = await http.post('/v1/periods/generate-year/', payload)
+    await refreshAll()
+    return data
+  }
+
+  async function generateNextPeriod() {
+    const { data } = await http.post('/v1/periods/generate-next/')
+    await refreshAll()
+    return data
+  }
+
+  async function fetchAllPeriods() {
+    const { data } = await http.get('/v1/periods/', { params: { include_hidden: true } })
+    allPeriods.value = Array.isArray(data) ? data : data.results || []
+    return allPeriods.value
+  }
+
+  async function fetchFiscalYears() {
+    const { data } = await http.get('/v1/fiscal-years/')
+    fiscalYears.value = Array.isArray(data) ? data : data.results || []
+    return fiscalYears.value
+  }
+
+  /** Refresh the picker list, and the management lists if they were loaded. */
+  async function refreshAll() {
+    const tasks = [fetchPeriods()]
+    if (managementLoaded.value) tasks.push(fetchAllPeriods(), fetchFiscalYears())
+    await Promise.all(tasks)
+  }
+
+  async function loadManagement() {
+    managementLoaded.value = true
+    await Promise.all([fetchPeriods(), fetchAllPeriods(), fetchFiscalYears()])
+  }
+
+  async function setPeriodHidden(periodId, hidden) {
+    const { data } = await http.post(`/v1/periods/${periodId}/${hidden ? 'hide' : 'show'}/`)
+    await refreshAll()
+    return data
+  }
+
+  async function setYearHidden(fiscalYearId, hidden) {
+    const { data } = await http.post(`/v1/fiscal-years/${fiscalYearId}/${hidden ? 'hide' : 'show'}/`)
+    await refreshAll()
+    return data
+  }
+
+  async function fetchPeriodUsage(periodId) {
+    const { data } = await http.get(`/v1/periods/${periodId}/usage/`)
+    return data
+  }
+
+  async function deletePeriod(periodId, reason = '') {
+    const { data } = await http.delete(`/v1/periods/${periodId}/`, { data: { reason } })
+    if (selectedPeriodId.value === periodId) userManuallySelected.value = false
+    await refreshAll()
+    return data
+  }
+
+  async function deleteFiscalYear(fiscalYearId, reason = '') {
+    const { data } = await http.delete(`/v1/fiscal-years/${fiscalYearId}/`, { data: { reason } })
+    await refreshAll()
     return data
   }
 
   return {
     periods,
+    allPeriods,
+    fiscalYears,
     selectedPeriodId,
     loading,
     activePeriod,
     periodLabel,
     isPeriodOpen,
+    periodsByYear,
+    availableYears,
     fetchPeriods,
+    fetchAllPeriods,
+    fetchFiscalYears,
+    loadManagement,
     selectPeriod,
     activateServerPeriod,
     reopenPeriod,
     generateYear,
+    generatePeriods,
+    generateNextPeriod,
+    setPeriodHidden,
+    setYearHidden,
+    fetchPeriodUsage,
+    deletePeriod,
+    deleteFiscalYear,
   }
 })

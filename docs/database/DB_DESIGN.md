@@ -73,7 +73,7 @@ erDiagram
 | `core_user` | Custom Django user (`AUTH_USER_MODEL`) | `role` ∈ ADMIN, ACCOUNTANT, AUDITOR, PURCHASING, CASHIER, READONLY |
 | `core_employee` | Stylists / staff (not system users) | `position` |
 | `core_fiscal_year` | Fiscal year | `year` unique |
-| `core_accounting_period` | Monthly period | UNIQUE(`year`,`month`), `status` OPEN/CLOSED, `closed_by_id` |
+| `core_accounting_period` | Monthly period | UNIQUE(`year`,`month`), `status` OPEN/CLOSED, `is_active`, `is_hidden`, `closed_by_id` |
 | `core_audit_log` | Append-only audit trail | `action`, `table_name`, `record_id`, `before_data`/`after_data` JSONB |
 
 ### 3.2 `accounting` (P2)

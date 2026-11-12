@@ -67,11 +67,14 @@ CREATE TABLE core_accounting_period (
     start_date     date     NOT NULL,
     end_date       date     NOT NULL,
     status         varchar(10) NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN','CLOSED')),
+    is_active      boolean NOT NULL DEFAULT false,
+    is_hidden      boolean NOT NULL DEFAULT false,
     closed_at      timestamptz,
     closed_by_id   bigint REFERENCES core_user(id) ON DELETE RESTRICT,
     UNIQUE (year, month),
     CHECK (end_date >= start_date),
-    CHECK (status = 'OPEN' OR closed_at IS NOT NULL)
+    CHECK (status = 'OPEN' OR closed_at IS NOT NULL),
+    CONSTRAINT ck_core_period_active_not_hidden CHECK (NOT (is_active AND is_hidden))
 );
 
 CREATE TABLE core_audit_log (

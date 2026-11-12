@@ -652,6 +652,7 @@ body {
 
 /* PeriodPicker & Inputs */
 .ds-period-picker {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -674,6 +675,172 @@ body {
   font-size: 0.85rem;
   color: var(--ink);
   cursor: pointer;
+}
+
+.ds-period-picker__trigger {
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+}
+
+.ds-period-picker__caret {
+  font-size: 0.65rem;
+  color: var(--ink-muted);
+}
+
+.ds-period-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 120;
+  width: 280px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  padding: 0.75rem;
+}
+
+.ds-period-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+}
+
+.ds-period-popover__year {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.ds-period-popover__nav {
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  cursor: pointer;
+  color: var(--ink);
+  transition: all 0.15s;
+}
+
+.ds-period-popover__nav:hover:not(:disabled) {
+  background: var(--paper);
+  border-color: var(--ink-muted);
+}
+
+.ds-period-popover__nav:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.ds-period-popover__empty {
+  font-size: 0.82rem;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.ds-period-popover__legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  margin-top: 0.65rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--border);
+}
+
+.ds-period-popover__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+}
+
+/* Month Grid */
+.ds-month-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+}
+
+.ds-month-grid__cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.42rem 0.2rem;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.ds-month-grid__cell:hover:not(:disabled) {
+  border-color: var(--wine);
+  background: var(--wine-soft);
+  color: var(--wine-dark);
+}
+
+.ds-month-grid__cell.is-selected {
+  background: var(--gold-soft);
+  border-color: var(--gold-bright);
+  color: var(--gold);
+  font-weight: 700;
+  box-shadow: 0 0 0 1px var(--gold-bright);
+}
+
+.ds-month-grid__cell.is-closed {
+  background: #f7f6f2;
+  color: var(--ink-muted);
+}
+
+.ds-month-grid__cell.is-locked {
+  background: #eee;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ds-month-grid__cell:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+  background: #faf9f6;
+  border-style: dashed;
+}
+
+.ds-month-grid__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.ds-month-grid__icon {
+  font-size: 0.65rem;
+  margin-left: 2px;
 }
 
 .ds-input {
@@ -775,6 +942,17 @@ body {
 .ds-btn--ghost {
   background: transparent;
   color: var(--ink-muted);
+}
+
+.ds-btn--danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: rgba(166, 27, 41, 0.35);
+}
+
+.ds-btn--danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  border-color: var(--danger);
 }
 
 .ds-btn-link {
@@ -2778,3 +2956,249 @@ body {
   color: var(--ink-muted);
   line-height: 1.35;
 }
+
+/* Fiscal Year Cards & Period Management */
+.ds-periods-toolbar {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.ds-fy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.ds-fy-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.ds-fy-card.is-archived {
+  opacity: 0.78;
+  border-style: dashed;
+}
+
+.ds-fy-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--paper);
+  border-bottom: 1px solid transparent;
+}
+
+.ds-fy-card.is-expanded .ds-fy-card__header {
+  border-bottom-color: var(--border);
+}
+
+.ds-fy-card__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  flex: 1;
+  font-size: 0.92rem;
+  padding: 0;
+}
+
+.ds-fy-card__chevron {
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  width: 14px;
+}
+
+.ds-fy-card__title {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 0.98rem;
+}
+
+.ds-fy-card__meta {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+.ds-fy-card__body {
+  padding: 1rem;
+}
+
+.ds-fy-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.5rem;
+}
+
+@media (min-width: 1100px) {
+  .ds-fy-grid {
+    grid-template-columns: repeat(12, 1fr);
+  }
+}
+
+.ds-fy-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  min-height: 60px;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.ds-fy-tile:hover:not(:disabled) {
+  border-color: var(--wine);
+}
+
+.ds-fy-tile.is-missing {
+  border-style: dashed;
+  background: #faf9f6;
+  color: var(--ink-muted);
+}
+
+.ds-fy-tile.is-missing:hover:not(:disabled) {
+  border-color: var(--wine);
+  color: var(--wine);
+  background: var(--wine-soft);
+}
+
+.ds-fy-tile.is-closed {
+  background: #f7f6f2;
+}
+
+.ds-fy-tile.is-active {
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 0 1px var(--gold-bright);
+}
+
+.ds-fy-tile.is-hidden {
+  opacity: 0.6;
+}
+
+.ds-fy-tile.is-selected {
+  border-color: var(--wine);
+  background: var(--wine-soft);
+  box-shadow: 0 0 0 1px var(--wine);
+}
+
+.ds-fy-tile__month {
+  font-weight: 700;
+  font-size: 0.84rem;
+  color: var(--ink);
+}
+
+.ds-fy-tile__status {
+  font-size: 0.68rem;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+
+.ds-fy-tile__flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 3px;
+  justify-content: center;
+}
+
+.ds-fy-tile__flag {
+  font-size: 0.62rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #eee;
+  color: #444;
+  line-height: 1.2;
+}
+
+.ds-fy-tile__flag--gold {
+  background: var(--gold-soft);
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.ds-fy-tile__flag--data {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.ds-fy-detail {
+  margin-top: 0.9rem;
+  padding: 0.75rem 1rem;
+  background: var(--paper);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ds-fy-detail__info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+}
+
+/* Segmented Control & Generation Preview */
+.ds-segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+  background: var(--paper);
+}
+
+.ds-segmented__option {
+  padding: 0.38rem 0.8rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.12s;
+  color: var(--ink-muted);
+}
+
+.ds-segmented__option input {
+  display: none;
+}
+
+.ds-segmented__option.is-active {
+  background: #ffffff;
+  font-weight: 600;
+  color: var(--wine);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.ds-gen-preview {
+  margin-top: 0.85rem;
+  padding: 0.6rem 0.85rem;
+  background: var(--wine-soft);
+  border-left: 3px solid var(--wine);
+  border-radius: 4px;
+  font-size: 0.84rem;
+  color: var(--ink);
+}
+
+.ds-gen-preview.is-warning {
+  background: var(--warning-soft);
+  border-left-color: var(--warning);
+}
+

@@ -3,8 +3,9 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import connection
+from django.db.models import Prefetch, Q
 from django.http import JsonResponse
-from rest_framework import status, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -25,14 +26,23 @@ from apps.core.serializers import (
     CustomTokenObtainPairSerializer,
     EmployeeSerializer,
     FiscalYearSerializer,
+    GeneratePeriodsSerializer,
     UserSerializer,
 )
 from apps.core.services.audit import log_audit, serialize_instance
 from apps.core.services.periods import (
     activate_period,
-    generate_fiscal_year_periods,
+    annotate_has_data,
+    can_delete_period,
+    delete_fiscal_year,
+    delete_period,
+    generate_next_period,
+    generate_periods,
     get_active_period,
+    period_usage,
     reopen_period,
+    set_fiscal_year_hidden,
+    set_period_hidden,
 )
 
 
@@ -179,19 +189,96 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         )
 
 
-class FiscalYearViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = FiscalYear.objects.all().order_by("-year")
+def _validation_message(exc: DjangoValidationError) -> str:
+    return exc.messages[0] if getattr(exc, "messages", None) else str(exc)
+
+
+def _truthy(value) -> bool:
+    return str(value).lower() in ("1", "true", "yes", "si", "sí")
+
+
+def _annotated_periods_qs():
+    return annotate_has_data(
+        AccountingPeriod.objects.select_related("fiscal_year", "closed_by").order_by("-year", "-month")
+    )
+
+
+class FiscalYearViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Fiscal years with generated-month summary; ADMIN can delete empty years."""
+
     serializer_class = FiscalYearSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def get_queryset(self):
+        return FiscalYear.objects.prefetch_related(
+            Prefetch("periods", queryset=annotate_has_data(AccountingPeriod.objects.order_by("month")))
+        ).order_by("-year")
+
+    def get_permissions(self):
+        if self.action == "destroy":
+            return [IsAdminRole()]
+        return super().get_permissions()
+
+    def destroy(self, request, *args, **kwargs):
+        fy = self.get_object()
+        try:
+            result = delete_fiscal_year(fy, user=request.user, reason=request.data.get("reason", "") or "")
+        except DjangoValidationError as exc:
+            return Response({"detail": _validation_message(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(result, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="hide", permission_classes=[IsAccountantOrAdmin])
+    def hide(self, request, pk=None):
+        updated = set_fiscal_year_hidden(self.get_object(), True, user=request.user)
+        return Response({"updated": updated})
+
+    @action(detail=True, methods=["post"], url_path="show", permission_classes=[IsAccountantOrAdmin])
+    def show(self, request, pk=None):
+        updated = set_fiscal_year_hidden(self.get_object(), False, user=request.user)
+        return Response({"updated": updated})
 
 
-class AccountingPeriodViewSet(viewsets.ReadOnlyModelViewSet):
-    """Accounting period selector & lifecycle endpoints (RF-GEN-01, RF-CIE-01, RF-CIE-05)."""
+class AccountingPeriodViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Accounting period selector & lifecycle endpoints (RF-GEN-01, RF-CIE-01, RF-CIE-05).
 
-    queryset = AccountingPeriod.objects.select_related("fiscal_year", "closed_by").order_by("-year", "-month")
+    ``GET /periods/`` hides periods flagged ``is_hidden`` unless ``?include_hidden=true``
+    (the active period is always listed).
+    """
+
     serializer_class = AccountingPeriodSerializer
     permission_classes = [IsAuthenticated]
-    filterset_fields = ["year", "month", "status", "is_active"]
+    pagination_class = None
+    filterset_fields = ["year", "month", "status", "is_active", "is_hidden"]
+
+    def get_queryset(self):
+        qs = _annotated_periods_qs()
+        if self.action == "list" and not _truthy(self.request.query_params.get("include_hidden", "")):
+            qs = qs.filter(Q(is_hidden=False) | Q(is_active=True))
+        return qs
+
+    def get_permissions(self):
+        if self.action == "destroy":
+            return [IsAdminRole()]
+        return super().get_permissions()
+
+    def destroy(self, request, *args, **kwargs):
+        period = self.get_object()
+        try:
+            result = delete_period(period, user=request.user, reason=request.data.get("reason", "") or "")
+        except DjangoValidationError as exc:
+            return Response({"detail": _validation_message(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(result, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"], url_path="active")
     def active(self, request):
@@ -207,26 +294,73 @@ class AccountingPeriodViewSet(viewsets.ReadOnlyModelViewSet):
         permission_classes=[IsAdminRole],
     )
     def generate_year(self, request):
-        year = request.data.get("year")
+        """Generate a full year, a month range, or specific months of a fiscal year."""
+        payload = GeneratePeriodsSerializer(data=request.data)
+        if not payload.is_valid():
+            errors = payload.errors
+            if "year" in errors:
+                detail = "Debe indicar un año numérico válido (ej. 2026)."
+            else:
+                first = next(iter(errors.values()))
+                detail = str(first[0]) if isinstance(first, list) else str(first)
+            return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            year_int = int(year)
-            fy = generate_fiscal_year_periods(year_int, user=request.user)
-        except (TypeError, ValueError):
-            return Response(
-                {"detail": "Debe indicar un año numérico válido (ej. 2026)."},
-                status=status.HTTP_400_BAD_REQUEST,
+            fy, created = generate_periods(
+                payload.validated_data["year"],
+                payload.validated_data["resolved_months"],
+                user=request.user,
             )
         except DjangoValidationError as exc:
-            return Response({"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": _validation_message(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        periods = AccountingPeriod.objects.filter(fiscal_year=fy).order_by("month")
+        periods = _annotated_periods_qs().filter(fiscal_year=fy).order_by("month")
         return Response(
             {
                 "fiscal_year": FiscalYearSerializer(fy).data,
                 "periods": AccountingPeriodSerializer(periods, many=True).data,
+                "created_count": len(created),
+                "created_months": [p.month for p in created],
             },
             status=status.HTTP_201_CREATED,
         )
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="generate-next",
+        permission_classes=[IsAdminRole],
+    )
+    def generate_next(self, request):
+        """Create the month right after the latest existing period."""
+        try:
+            period = generate_next_period(user=request.user)
+        except DjangoValidationError as exc:
+            return Response({"detail": _validation_message(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        period = _annotated_periods_qs().get(pk=period.pk)
+        return Response(self.get_serializer(period).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"], url_path="usage", permission_classes=[IsAdminRole])
+    def usage(self, request, pk=None):
+        period = self.get_object()
+        ok, msg = can_delete_period(period)
+        return Response({"usage": period_usage(period), "can_delete": ok, "reason": msg})
+
+    @action(detail=True, methods=["post"], url_path="hide", permission_classes=[IsAccountantOrAdmin])
+    def hide(self, request, pk=None):
+        return self._set_hidden(True)
+
+    @action(detail=True, methods=["post"], url_path="show", permission_classes=[IsAccountantOrAdmin])
+    def show(self, request, pk=None):
+        return self._set_hidden(False)
+
+    def _set_hidden(self, hidden: bool):
+        period = self.get_object()
+        try:
+            set_period_hidden(period, hidden, user=self.request.user)
+        except DjangoValidationError as exc:
+            return Response({"detail": _validation_message(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(self.get_serializer(_annotated_periods_qs().get(pk=period.pk)).data)
 
     @action(
         detail=True,

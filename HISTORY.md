@@ -1,5 +1,44 @@
 # Change History — Diamond Salón · Atelier Contable
 
+## [2026-11-12] Gestión Flexible de Ejercicios y Períodos Contables
+
+**Scope:** Modernización integral del ciclo de vida y selector de períodos y ejercicios fiscales (generación parcial, generación mes a mes, visibilidad/ocultación, eliminación segura y rediseño de UI).
+
+### 1. Backend (`backend/apps/core/`)
+- **Modelos y Restricciones (`models.py` & migración `0003_period_is_hidden.py`)**:
+  - Añadido campo `is_hidden` a `AccountingPeriod` con restricción de integridad `ck_core_period_active_not_hidden` (`NOT (is_active AND is_hidden)`).
+- **Servicios de Dominio (`services/periods.py`)**:
+  - `generate_periods(year, months, user)`: Generación modular de año completo (`FULL`), rango de meses (`RANGE`, ej. Mar–Dic) o lista explícita (`MONTHS`). Idempotente (omite meses existentes).
+  - `generate_next_period(user)`: Apertura rápida del mes correlativo siguiente al último existente (creando el nuevo `FiscalYear` de forma transparente al cruzar de diciembre a enero).
+  - `period_usage(period)`: Auditoría de uso en tablas relacionadas con clave foránea (`accounting_journal_entry`, `sales_sale`, `purchases_purchase`, `accounting_period_balance`) y por rango de fechas en movimientos de inventario (`inventory_movement`).
+  - `can_delete_period(period)` y `delete_period(period, user, reason)`: Validación estricta que permite la eliminación únicamente de meses en estado `OPEN` con **0 datos registrados**. Reasigna automáticamente el período activo al más cercano si se elimina el activo, y limpia el ejercicio fiscal si queda vacío. Registro en `AuditLog` con motivo obligatorio.
+  - `delete_fiscal_year(fy, user, reason)`: Eliminación en bloque de un año fiscal y todos sus meses si ninguno contiene datos.
+  - `set_period_hidden(period, hidden)` y `set_fiscal_year_hidden(fy, hidden)`: Visibilidad selectiva o por ejercicio completo en el selector de períodos, protegiendo siempre el mes activo.
+  - `annotate_has_data(queryset)`: Anotación eficiente con subconsultas `Exists()` para evitar consultas N+1 al evaluar la existencia de datos.
+- **Serializadores y Endpoints API (`serializers.py`, `views.py`)**:
+  - `GeneratePeriodsSerializer`: Validación de modos de generación (`FULL`, `RANGE`, `MONTHS`).
+  - `FiscalYearViewSet`: Endpoints para listar meses generados, conteo de ocultos, `POST /v1/fiscal-years/{id}/hide/`, `POST /v1/fiscal-years/{id}/show/` y `DELETE /v1/fiscal-years/{id}/`.
+  - `AccountingPeriodViewSet`: Filtro predeterminado que excluye períodos ocultos (`?include_hidden=true` para administración), `POST generate-year/`, `POST generate-next/`, `GET {id}/usage/`, `POST {id}/hide/`, `POST {id}/show/` y `DELETE {id}/`.
+- **Pruebas Automatizadas (`tests/test_core.py`)**:
+  - Añadida suite `TestFlexiblePeriodManagement` con 15 pruebas cubriendo compatibilidad hacia atrás, generación parcial, idempotencia, validación de cargas inválidas, cruce de año en `generate-next`, RBAC, visibilidad, borrado con auditoría, bloqueo ante datos registrados y eliminación en cascada de años vacíos.
+
+### 2. Frontend (`frontend/src/`)
+- **Store Pinia (`stores/period.js`)**:
+  - Soporte para lista visible (`periods`) y completa con ocultos (`allPeriods`).
+  - Acciones `generatePeriods`, `generateNextPeriod`, `setPeriodHidden`, `setYearHidden`, `fetchPeriodUsage`, `deletePeriod`, `deleteFiscalYear` y `loadManagement`.
+- **Selector Compacto de Encabezado (`components/ui/PeriodPicker.vue`)**:
+  - Sustitución del `<select>` plano infinito por un menú emergente elegante y accesible con navegación por año (◀ Año ▶), cuadrícula mensual de 4×3 (`MonthGrid.vue`), estado de períodos (abierto, cerrado 🔒, activo por defecto con punto dorado) y atajos rápidos.
+- **Cuadrícula de Meses (`components/ui/MonthGrid.vue`)**:
+  - Componente reutilizable con soporte para selección única y selección múltiple con meses bloqueados. Navegación por teclado mediante flechas (`ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`).
+- **Pestaña de Períodos en Configuración (`CompanySettingsView.vue`)**:
+  - Transformación de la tabla plana en tarjetas colapsables por ejercicio fiscal (`FiscalYearCard.vue`) con resumen de meses generados/ocultos/cerrados, mosaico interactivo de meses, detalle de acciones rápidas (+ Siguiente mes, Ocultar año, Eliminar año).
+  - Modal de generación versátil (`GeneratePeriodsModal.vue`) con selector de modo (año completo, rango o cuadrícula interactiva de meses faltantes).
+  - Diálogo de confirmación con motivo obligatorio (`ConfirmDialog.vue`) para auditoría de eliminaciones.
+- **Estilos (`styles/main.css`)**:
+  - Paleta de diseño corporativa Diamond (vino, oro y marfil) aplicada a cuadrículas, tarjetas colapsables, mosaicos de meses y controles segmentados.
+
+---
+
 ## [2026-11-08] Person 1 (P1 · Platform, Auth, Períodos, UI Kit & Panel)
 
 **Owner:** Person 1 (P1 — Platform, Auth, UI Kit & Dashboard Lead)  
