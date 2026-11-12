@@ -127,11 +127,45 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
 class FiscalYearSerializer(serializers.ModelSerializer):
     status_label = serializers.CharField(source="get_status_display", read_only=True)
+    months = serializers.SerializerMethodField()
+    periods_count = serializers.SerializerMethodField()
+    hidden_count = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
 
     class Meta:
         model = FiscalYear
-        fields = ["id", "year", "start_date", "end_date", "status", "status_label"]
-        read_only_fields = ["id", "status_label"]
+        fields = [
+            "id",
+            "year",
+            "start_date",
+            "end_date",
+            "status",
+            "status_label",
+            "months",
+            "periods_count",
+            "hidden_count",
+            "can_delete",
+        ]
+        read_only_fields = fields
+
+    def _periods(self, obj: FiscalYear) -> list[AccountingPeriod]:
+        # Uses the prefetched + annotated periods when the viewset provides them.
+        return list(obj.periods.all())
+
+    def get_months(self, obj: FiscalYear) -> list[int]:
+        return sorted(p.month for p in self._periods(obj))
+
+    def get_periods_count(self, obj: FiscalYear) -> int:
+        return len(self._periods(obj))
+
+    def get_hidden_count(self, obj: FiscalYear) -> int:
+        return sum(1 for p in self._periods(obj) if p.is_hidden)
+
+    def get_can_delete(self, obj: FiscalYear) -> bool | None:
+        periods = self._periods(obj)
+        if any(not hasattr(p, "has_data") for p in periods):
+            return None
+        return obj.status == "OPEN" and all(p.status == "OPEN" and not p.has_data for p in periods)
 
 
 class AccountingPeriodSerializer(serializers.ModelSerializer):
@@ -140,6 +174,8 @@ class AccountingPeriodSerializer(serializers.ModelSerializer):
     code = serializers.CharField(read_only=True)
     status_label = serializers.CharField(source="get_status_display", read_only=True)
     closed_by_username = serializers.CharField(source="closed_by.username", read_only=True, default=None)
+    has_data = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
 
     class Meta:
         model = AccountingPeriod
@@ -156,6 +192,9 @@ class AccountingPeriodSerializer(serializers.ModelSerializer):
             "status",
             "status_label",
             "is_active",
+            "is_hidden",
+            "has_data",
+            "can_delete",
             "closed_at",
             "closed_by",
             "closed_by_username",
@@ -166,10 +205,59 @@ class AccountingPeriodSerializer(serializers.ModelSerializer):
             "label",
             "code",
             "status_label",
+            "is_hidden",
+            "has_data",
+            "can_delete",
             "closed_at",
             "closed_by",
             "closed_by_username",
         ]
+
+    def get_has_data(self, obj: AccountingPeriod) -> bool | None:
+        # Only available when the queryset was annotated (see annotate_has_data).
+        return getattr(obj, "has_data", None)
+
+    def get_can_delete(self, obj: AccountingPeriod) -> bool | None:
+        has_data = getattr(obj, "has_data", None)
+        if has_data is None:
+            return None
+        return obj.status == "OPEN" and not has_data
+
+
+class GeneratePeriodsSerializer(serializers.Serializer):
+    """Input payload for POST /periods/generate-year/ (full year, month range, or specific months)."""
+
+    MODE_FULL = "FULL"
+    MODE_RANGE = "RANGE"
+    MODE_MONTHS = "MONTHS"
+
+    year = serializers.IntegerField(min_value=2000, max_value=2100)
+    mode = serializers.ChoiceField(choices=[MODE_FULL, MODE_RANGE, MODE_MONTHS], default=MODE_FULL)
+    start_month = serializers.IntegerField(min_value=1, max_value=12, required=False)
+    end_month = serializers.IntegerField(min_value=1, max_value=12, required=False)
+    months = serializers.ListField(
+        child=serializers.IntegerField(min_value=1, max_value=12),
+        required=False,
+        allow_empty=False,
+    )
+
+    def validate(self, attrs):
+        mode = attrs.get("mode", self.MODE_FULL)
+        if mode == self.MODE_FULL:
+            attrs["resolved_months"] = None
+        elif mode == self.MODE_RANGE:
+            start, end = attrs.get("start_month"), attrs.get("end_month")
+            if start is None or end is None:
+                raise serializers.ValidationError("Debe indicar el mes inicial y el mes final del rango.")
+            if start > end:
+                raise serializers.ValidationError("El mes inicial no puede ser posterior al mes final.")
+            attrs["resolved_months"] = list(range(start, end + 1))
+        else:
+            months = attrs.get("months")
+            if not months:
+                raise serializers.ValidationError("Debe seleccionar al menos un mes a generar.")
+            attrs["resolved_months"] = sorted(set(months))
+        return attrs
 
 
 class AuditLogSerializer(serializers.ModelSerializer):

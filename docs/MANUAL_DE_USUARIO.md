@@ -388,6 +388,47 @@ El cierre contable mensual es el procedimiento más crítico del ciclo financier
 
 ---
 
+## 5.1 GESTIÓN FLEXIBLE DE EJERCICIOS Y PERÍODOS CONTABLES
+
+Para evitar saturar la interfaz con listados excesivamente largos y permitir la operación ágil en salones que inician operaciones a mediados de año o que requieren crear períodos mes a mes, el sistema provee herramientas completas de administración flexible en **Configuración > Períodos Contables**:
+
+### 1. Selector Compacto de Períodos (Encabezado Superior)
+* **Menú emergente visual:** Al hacer clic en el período activo de la barra superior, se despliega una cuadrícula 4×3 con navegación anual (`◀ Año ▶`).
+* **Iconografía rápida:**
+  * **Punto dorado:** Período predeterminado del sistema (`is_active = True`).
+  * **Candado 🔒:** Período cerrado de forma definitiva.
+  * **Borde resaltado:** Período actualmente consultado en pantalla.
+  * **Casillas tenues/deshabilitadas:** Períodos no generados u ocultos.
+* **Atajos:** Enlace directo para volver al período activo y acceso a la administración general.
+
+### 2. Generación Modular y Apertura de Meses
+Desde la pestaña **Períodos Contables** (requiere rol `ADMIN`):
+* **Generar períodos (+ Modal):**
+  * **Año completo:** Genera de una sola vez los 12 períodos mensuales del ejercicio.
+  * **Rango de meses:** Permite indicar mes inicial y final (ej. desde *Marzo* hasta *Diciembre* para un ejercicio fiscal parcial).
+  * **Meses específicos:** Muestra la cuadrícula de los 12 meses donde se pueden marcar exactamente los meses a generar (los meses ya existentes aparecen bloqueados para evitar duplicidades).
+* **Botón "+ Siguiente mes":** Genera con un solo clic el mes correlativo posterior al último existente. Si el último mes era Diciembre, crea automáticamente el nuevo ejercicio fiscal y su mes de Enero.
+* **Generación directa desde tarjeta:** En las tarjetas anuales, los meses no generados muestran un recuadro punteado `+ Generar`; al hacer clic se abre el asistente para dicho mes.
+
+### 3. Ocultar y Mostrar Períodos en el Menú
+* Permite limpiar el selector de períodos sin eliminar ni alterar la validez legal ni los registros de un mes (`is_hidden = True`).
+* **Ocultar individual:** En la vista detallada del mes, presione **"Ocultar del selector"** o **"Mostrar en selector"**.
+* **Ocultar año completo:** En la cabecera de la tarjeta del ejercicio, el botón **"Ocultar año"** / **"Mostrar año"** archiva todos los meses del ejercicio a la vez.
+* **Regla de seguridad:** El período activo de trabajo **nunca** puede ser ocultado; si un período oculto es marcado como activo, el sistema lo hace visible automáticamente.
+* **Filtro de administración:** Los ejercicios cuyos meses están todos archivados pueden mostrarse u ocultarse con la casilla *"Mostrar ejercicios archivados / ocultos"*.
+
+### 4. Eliminación Segura de Períodos y Años
+Diseñado para subsanar errores en los que un administrador generó un año o meses por equivocación:
+* **Validación rigurosa de integridad contable:** Un período solo puede eliminarse si cumple dos condiciones simultáneas:
+  1. Su estado es **`OPEN`** (un período cerrado con liquidación de IVA y balances congelados no puede ser destruido bajo ninguna circunstancia).
+  2. Tiene **0 datos registrados** (sin partidas contables en diario, sin ventas, sin compras, sin movimientos de kardex/inventario y sin saldos de cierre).
+* **Eliminación de ejercicio completo:** El botón **"Eliminar año"** solo se habilita si todos los meses del ejercicio carecen de datos. Si alguno tiene información, el sistema bloquea la acción e indica los meses con movimientos.
+* **Reasignación automática del activo:** Si se elimina un mes que estaba marcado como activo en la interfaz, el sistema traslada automáticamente la marca de activo al período abierto más cercano.
+* **Limpieza de contenedores:** Al eliminar el último mes restante de un ejercicio, el registro del año fiscal se elimina de manera limpia.
+* **Bitácora obligatoria:** Toda eliminación solicita un motivo y queda asentada en `core_audit_log` con la información previa del registro y el usuario administrador responsable.
+
+---
+
 ## 6. DATOS DE DEMOSTRACIÓN CARGADOS (ESCENARIO NOVIEMBRE 2026)
 
 Para facilitar la evaluación, auditoría y capacitación del personal, el sistema cuenta con un set de datos de prueba precargados correspondientes al ejercicio de **Noviembre 2026**.

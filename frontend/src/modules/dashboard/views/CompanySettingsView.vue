@@ -1,17 +1,30 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import http from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { usePeriodStore } from '@/stores/period'
 import { Badge, ConfirmDialog, DataTable, SearchInput } from '@/components/ui'
-import { formatDateLong, formatDateTime } from '@/utils/formatters'
+import FiscalYearCard from '@/modules/dashboard/components/FiscalYearCard.vue'
+import GeneratePeriodsModal from '@/modules/dashboard/components/GeneratePeriodsModal.vue'
+import { formatDateTime } from '@/utils/formatters'
+import { describeMonths } from '@/utils/months'
 
 const authStore = useAuthStore()
 const periodStore = usePeriodStore()
+const route = useRoute()
 
-const activeTab = ref('company') // 'company' | 'periods' | 'employees' | 'audit'
+const TABS = ['company', 'periods', 'employees', 'audit']
+const activeTab = ref(TABS.includes(route.query.tab) ? route.query.tab : 'company') // 'company' | 'periods' | 'employees' | 'audit'
 const feedbackMsg = ref('')
 const errorMsg = ref('')
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    if (TABS.includes(tab)) activeTab.value = tab
+  }
+)
 
 // 1. Company state
 const companyForm = ref({
@@ -28,10 +41,18 @@ const companyForm = ref({
 const savingCompany = ref(false)
 
 // 2. Periods state
-const newYearInput = ref(2027)
+const generateModal = ref(false)
+const generateYearInitial = ref(new Date().getFullYear())
+const generateMonthsInitial = ref([])
+const expandedYears = ref(new Set())
+const showArchivedYears = ref(false)
 const reopenDialog = ref(false)
 const periodToReopen = ref(null)
 const reopening = ref(false)
+const deleteDialog = ref(false)
+const deleteTarget = ref(null) // { type: 'period' | 'year', item }
+const deleting = ref(false)
+const generatingNext = ref(false)
 
 // 3. Employees state
 const employees = ref([])
@@ -42,16 +63,6 @@ const auditLogs = ref([])
 const loadingAudit = ref(false)
 const auditSearch = ref('')
 const auditActionFilter = ref('')
-
-const periodColumns = [
-  { key: 'code', label: 'Código', width: '90px' },
-  { key: 'label', label: 'Período Mensual' },
-  { key: 'start_date', label: 'Inicio' },
-  { key: 'end_date', label: 'Fin' },
-  { key: 'status', label: 'Estado', align: 'center' },
-  { key: 'is_active', label: 'Activo en UI', align: 'center' },
-  { key: 'actions', label: 'Acciones', align: 'right' },
-]
 
 const auditColumns = [
   { key: 'created_at', label: 'Fecha y Hora', width: '145px' },
@@ -83,25 +94,151 @@ async function saveCompany() {
   }
 }
 
-async function handleGenerateYear() {
+// --- Fiscal years & periods management -------------------------------------------------
+
+function periodsOfYear(fy) {
+  return periodStore.allPeriods.filter((p) => p.fiscal_year === fy.id).sort((a, b) => a.month - b.month)
+}
+
+/** A year is "archived" when every period is hidden (the active period never counts against it). */
+function isArchivedYear(fy) {
+  const periods = periodsOfYear(fy)
+  return periods.length > 0 && periods.some((p) => p.is_hidden) && periods.every((p) => p.is_hidden || p.is_active)
+}
+
+const sortedFiscalYears = computed(() => [...periodStore.fiscalYears].sort((a, b) => b.year - a.year))
+const archivedYearsCount = computed(() => sortedFiscalYears.value.filter(isArchivedYear).length)
+const visibleFiscalYears = computed(() =>
+  showArchivedYears.value ? sortedFiscalYears.value : sortedFiscalYears.value.filter((fy) => !isArchivedYear(fy))
+)
+
+function toggleYear(year) {
+  const next = new Set(expandedYears.value)
+  if (next.has(year)) next.delete(year)
+  else next.add(year)
+  expandedYears.value = next
+}
+
+function resetMessages() {
   feedbackMsg.value = ''
   errorMsg.value = ''
+}
+
+function openGenerateModal({ year, months } = {}) {
+  const latest = sortedFiscalYears.value[0]?.year
+  generateYearInitial.value = year ?? (latest ? latest + 1 : new Date().getFullYear())
+  generateMonthsInitial.value = months ?? []
+  generateModal.value = true
+}
+
+function onGenerated(data) {
+  resetMessages()
+  const year = data.fiscal_year?.year
+  const months = data.created_months || []
+  feedbackMsg.value = months.length
+    ? `Se generaron ${months.length} período(s) en ${year}: ${describeMonths(months)}.`
+    : `No se generaron períodos nuevos en ${year}; los meses seleccionados ya existían.`
+  if (year) expandedYears.value = new Set([...expandedYears.value, year])
+}
+
+async function handleGenerateNext() {
+  resetMessages()
+  generatingNext.value = true
   try {
-    await periodStore.generateYear(Number(newYearInput.value))
-    feedbackMsg.value = `Ejercicio fiscal ${newYearInput.value} generado con sus 12 períodos mensuales.`
+    const period = await periodStore.generateNextPeriod()
+    feedbackMsg.value = `Período ${period.label} generado.`
+    expandedYears.value = new Set([...expandedYears.value, period.year])
   } catch (err) {
-    errorMsg.value = err.response?.data?.detail || 'Error al generar el año fiscal.'
+    errorMsg.value = err.response?.data?.detail || 'No se pudo generar el siguiente período.'
+  } finally {
+    generatingNext.value = false
   }
 }
 
 async function handleActivatePeriod(row) {
-  feedbackMsg.value = ''
-  errorMsg.value = ''
+  resetMessages()
   try {
     await periodStore.activateServerPeriod(row.id)
     feedbackMsg.value = `Período activo cambiado a ${row.label}.`
   } catch (err) {
     errorMsg.value = err.response?.data?.detail || 'No se pudo activar el período.'
+  }
+}
+
+async function handleSetHidden({ period, hidden }) {
+  resetMessages()
+  try {
+    await periodStore.setPeriodHidden(period.id, hidden)
+    feedbackMsg.value = hidden
+      ? `${period.label} ya no aparece en el selector de períodos.`
+      : `${period.label} vuelve a aparecer en el selector de períodos.`
+  } catch (err) {
+    errorMsg.value = err.response?.data?.detail || 'No se pudo cambiar la visibilidad del período.'
+  }
+}
+
+async function handleSetYearHidden({ fiscalYear, hidden }) {
+  resetMessages()
+  try {
+    const { updated } = await periodStore.setYearHidden(fiscalYear.id, hidden)
+    feedbackMsg.value = hidden
+      ? `Ejercicio ${fiscalYear.year}: ${updated} mes(es) ocultos del selector.`
+      : `Ejercicio ${fiscalYear.year}: ${updated} mes(es) visibles nuevamente.`
+  } catch (err) {
+    errorMsg.value = err.response?.data?.detail || 'No se pudo cambiar la visibilidad del ejercicio.'
+  }
+}
+
+function askDeletePeriod(period) {
+  deleteTarget.value = { type: 'period', item: period }
+  deleteDialog.value = true
+}
+
+function askDeleteYear(fy) {
+  deleteTarget.value = { type: 'year', item: fy }
+  deleteDialog.value = true
+}
+
+const deleteDialogTitle = computed(() =>
+  deleteTarget.value?.type === 'year' ? 'Eliminar ejercicio fiscal' : 'Eliminar período contable'
+)
+
+const deleteDialogMessage = computed(() => {
+  const target = deleteTarget.value
+  if (!target) return ''
+  if (target.type === 'year') {
+    const fy = target.item
+    const months = periodsOfYear(fy).map((p) => p.month)
+    return `Se eliminará el ejercicio ${fy.year} y sus ${months.length} período(s)${
+      months.length ? ` (${describeMonths(months)})` : ''
+    }. Ninguno tiene datos registrados. Esta acción quedará registrada en la bitácora de auditoría.`
+  }
+  const p = target.item
+  const extra = p.is_active ? ' Es el período activo: se activará automáticamente el período abierto más cercano.' : ''
+  return `Se eliminará el período ${p.label}, que no tiene datos registrados.${extra} Esta acción quedará registrada en la bitácora de auditoría.`
+})
+
+async function confirmDelete(reason) {
+  const target = deleteTarget.value
+  if (!target) return
+  deleting.value = true
+  resetMessages()
+  try {
+    if (target.type === 'year') {
+      const result = await periodStore.deleteFiscalYear(target.item.id, reason)
+      feedbackMsg.value = `Ejercicio ${result.deleted_year} eliminado (${result.deleted_periods} período(s)).`
+    } else {
+      const result = await periodStore.deletePeriod(target.item.id, reason)
+      feedbackMsg.value = result.fiscal_year_deleted
+        ? `Período ${target.item.label} eliminado. El ejercicio ${target.item.year} quedó vacío y también se eliminó.`
+        : `Período ${target.item.label} eliminado.`
+    }
+    deleteDialog.value = false
+  } catch (err) {
+    errorMsg.value = err.response?.data?.detail || 'No se pudo completar la eliminación.'
+    deleteDialog.value = false
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -154,10 +291,12 @@ async function loadAuditLogs() {
 onMounted(async () => {
   await Promise.all([
     loadCompany(),
-    periodStore.fetchPeriods(),
+    periodStore.loadManagement(),
     loadEmployees(),
     loadAuditLogs(),
   ])
+  const activeYear = periodStore.periods.find((p) => p.is_active)?.year
+  if (activeYear) expandedYears.value = new Set([activeYear])
 })
 </script>
 
@@ -313,60 +452,66 @@ onMounted(async () => {
     <div v-else-if="activeTab === 'periods'" class="ds-panel">
       <div class="ds-panel__header">
         <div>
-          <h2 class="ds-panel__title">Períodos Mensuales de Contabilidad</h2>
+          <h2 class="ds-panel__title">Ejercicios y Períodos Contables</h2>
           <p class="ds-panel__subtitle">
-            Solo se permiten asientos, ventas y compras en períodos con estado ABIERTO (RN-03).
+            Administre la generación flexible de períodos, visibilidad en selectores y cierres mensuales (RN-03).
           </p>
         </div>
         <div v-if="authStore.isAdmin" class="ds-inline-form">
-          <input
-            v-model="newYearInput"
-            type="number"
-            min="2020"
-            max="2040"
-            class="ds-input ds-input--sm"
-            style="width: 100px"
-          />
-          <button type="button" class="ds-btn ds-btn--sm ds-btn--primary" @click="handleGenerateYear">
-            + Generar Año Fiscal
+          <button
+            type="button"
+            class="ds-btn ds-btn--sm ds-btn--outline"
+            :disabled="generatingNext"
+            @click="handleGenerateNext"
+          >
+            {{ generatingNext ? 'Generando…' : '+ Siguiente mes' }}
+          </button>
+          <button
+            type="button"
+            class="ds-btn ds-btn--sm ds-btn--primary"
+            @click="openGenerateModal()"
+          >
+            + Generar períodos
           </button>
         </div>
       </div>
 
-      <DataTable :columns="periodColumns" :rows="periodStore.periods" :page-size="12">
-        <template #cell-code="{ value }">
-          <strong>{{ value }}</strong>
-        </template>
-        <template #cell-start_date="{ value }">{{ formatDateLong(value) }}</template>
-        <template #cell-end_date="{ value }">{{ formatDateLong(value) }}</template>
-        <template #cell-status="{ row }">
-          <Badge :variant="row.status" size="sm">{{ row.status_label }}</Badge>
-        </template>
-        <template #cell-is_active="{ value }">
-          <Badge v-if="value" variant="gold" size="sm">ACTIVO POR DEFECTO</Badge>
-          <span v-else class="text-muted">—</span>
-        </template>
-        <template #cell-actions="{ row }">
-          <div class="ds-row-actions">
-            <button
-              v-if="!row.is_active && authStore.isAccountant"
-              type="button"
-              class="ds-btn ds-btn--sm ds-btn--outline"
-              @click="handleActivatePeriod(row)"
-            >
-              Marcar activo
-            </button>
-            <button
-              v-if="row.status === 'CLOSED' && authStore.isAdmin"
-              type="button"
-              class="ds-btn ds-btn--sm ds-btn--primary"
-              @click="askReopen(row)"
-            >
-              Reabrir período
-            </button>
-          </div>
-        </template>
-      </DataTable>
+      <div v-if="archivedYearsCount > 0" class="ds-periods-toolbar">
+        <label class="ds-checkbox">
+          <input v-model="showArchivedYears" type="checkbox" />
+          <span>Mostrar ejercicios archivados / ocultos ({{ archivedYearsCount }})</span>
+        </label>
+      </div>
+
+      <div v-if="visibleFiscalYears.length" class="ds-fy-list">
+        <FiscalYearCard
+          v-for="fy in visibleFiscalYears"
+          :key="fy.id"
+          :fiscal-year="fy"
+          :periods="periodsOfYear(fy)"
+          :expanded="expandedYears.has(fy.year)"
+          :is-admin="authStore.isAdmin"
+          :is-accountant="authStore.isAccountant"
+          @toggle="toggleYear(fy.year)"
+          @activate="handleActivatePeriod"
+          @set-hidden="handleSetHidden"
+          @reopen="askReopen"
+          @delete="askDeletePeriod"
+          @add-months="openGenerateModal"
+          @set-year-hidden="handleSetYearHidden"
+          @delete-year="askDeleteYear"
+        />
+      </div>
+      <p v-else class="text-muted" style="padding: 2rem 0; text-align: center">
+        No hay ejercicios fiscales registrados.
+      </p>
+
+      <GeneratePeriodsModal
+        v-model="generateModal"
+        :initial-year="generateYearInitial"
+        :initial-months="generateMonthsInitial"
+        @generated="onGenerated"
+      />
 
       <ConfirmDialog
         v-model="reopenDialog"
@@ -376,6 +521,17 @@ onMounted(async () => {
         require-reason
         :loading="reopening"
         @confirm="confirmReopen"
+      />
+
+      <ConfirmDialog
+        v-model="deleteDialog"
+        :title="deleteDialogTitle"
+        :message="deleteDialogMessage"
+        confirm-label="Eliminar"
+        require-reason
+        reason-placeholder="Indique el motivo de la eliminación para la bitácora…"
+        :loading="deleting"
+        @confirm="confirmDelete"
       />
     </div>
 
